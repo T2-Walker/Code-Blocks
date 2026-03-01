@@ -3,7 +3,7 @@
     <div class="main_alert">
       <h3>Главная страница</h3>
       
-       <button class="test-button" @click="goToTest"> Test</button> //кнопка перебброса кодблок
+       <button class="test-button" @click="goToTest"> Test</button>
     </div>
   </div>
 </template>
