@@ -1,12 +1,11 @@
 <template>
   <div class="test-page">
-    <button class="back-btn" @click="$router.push('/')">
-      ← Назад
-    </button>
-    
+    <button class="back-btn" @click="$router.push('/')">← Назад</button>
+
     <div class="container">
-      <SidebarBlocks />
-      <WorkspaceArea 
+      <SidebarBlocks @palette-drop="onPaletteDrop" />
+      <WorkspaceArea
+        ref="workspaceAreaRef"
         :blocks="blocks"
         @drop="addBlock"
         @update-block="updateBlockPosition"
@@ -18,19 +17,18 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import SidebarBlocks from '@/components/sidebar/SidebarBlocks.vue'
-import WorkspaceArea from '@/components/workspace/WorkspaceArea.vue'
+import WorkspaceArea from '/src/components/workSpace/WorkspaceArea.vue'
 
-const router = useRouter()
 const blocks = ref([])
+const workspaceAreaRef = ref(null)
 
 const addBlock = (newBlock) => {
   blocks.value.push(newBlock)
 }
 
 const updateBlockPosition = ({ id, x, y }) => {
-  const block = blocks.value.find(b => b.id === id)
+  const block = blocks.value.find((b) => b.id === id)
   if (block) {
     block.x = Math.round(x)
     block.y = Math.round(y)
@@ -38,7 +36,13 @@ const updateBlockPosition = ({ id, x, y }) => {
 }
 
 const deleteBlock = (blockId) => {
-  blocks.value = blocks.value.filter(b => b.id !== blockId)
+  blocks.value = blocks.value.filter((b) => b.id !== blockId)
+}
+
+const onPaletteDrop = (payload) => {
+  if (workspaceAreaRef.value && workspaceAreaRef.value.handlePaletteDrop) {
+    workspaceAreaRef.value.handlePaletteDrop(payload)
+  }
 }
 </script>
 
@@ -55,7 +59,7 @@ const deleteBlock = (blockId) => {
   position: absolute;
   top: 20px;
   right: 30px;
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
   border: none;
   border-radius: 5px;
