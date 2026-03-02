@@ -17,12 +17,12 @@ import Footer from '@/components/Footer.vue'
 .app {
   display: flex;
   flex-direction: column;
-  background-color: aquamarine;
+  background-color: #264b91;
   min-height: 100vh;
   width: 100%;
 }
 
-.content{
+.content {
   flex: 1;
   flex-direction: column;
 }

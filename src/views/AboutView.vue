@@ -12,7 +12,7 @@
 .about {
   width: 92%;
   height: 450px;
-  background-color: grey;
+
   margin: 50px auto;
   text-decoration: none;
   color: white;
@@ -22,6 +22,7 @@
   flex-direction: column;
   justify-content: center;
   min-height: 100%;
+  background: transparent !important;
 }
 
 .about_button {
@@ -29,4 +30,5 @@
   color: white;
   border-color: black;
 }
+
 </style>

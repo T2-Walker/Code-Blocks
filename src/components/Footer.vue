@@ -8,5 +8,12 @@
   </footer>
 </template>
 <style scoped>
-
+.footer a {
+  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  color: rgba(255, 255, 255, 0.5); /* неяркий белый */
+  text-decoration: none;
+  font-size: 0.95em;
+  text-transform: uppercase; /* заглавные буквы */
+  letter-spacing: 1.5px;
+}
 </style>
