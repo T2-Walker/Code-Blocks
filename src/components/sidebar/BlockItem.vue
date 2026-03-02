@@ -1,9 +1,8 @@
 <template>
-  <div 
+  <div
     class="block-item"
     :style="{ backgroundColor: blockColor }"
-    draggable="true"
-    @dragstart="onDragStart"
+    @pointerdown="onPointerDown"
   >
     🟢 {{ blockName }}
   </div>
@@ -13,17 +12,44 @@
 const props = defineProps({
   blockType: String,
   blockName: String,
-  blockColor: String
+  blockColor: String,
 })
 
-const emit = defineEmits(['dragstart'])
+const emit = defineEmits(['palette-drop'])
 
-const onDragStart = (event) => {
-  emit('dragstart', event, {
+const onPointerDown = (event) => {
+  event.preventDefault()
+
+  const startX = event.clientX
+  const startY = event.clientY
+
+  const pointerId = event.pointerId
+  event.target.setPointerCapture(pointerId)
+
+  const payload = {
     type: props.blockType,
     name: props.blockName,
-    color: props.blockColor
-  })
+    color: props.blockColor,
+  }
+
+  const onPointerUp = (e) => {
+    const dx = Math.abs(e.clientX - startX)
+    const dy = Math.abs(e.clientY - startY)
+
+    // Небольшой порог, чтобы не реагировать на случайный клик
+    if (dx > 3 || dy > 3) {
+      emit('palette-drop', {
+        ...payload,
+        clientX: e.clientX,
+        clientY: e.clientY,
+      })
+    }
+
+    event.target.releasePointerCapture(pointerId)
+    document.removeEventListener('pointerup', onPointerUp)
+  }
+
+  document.addEventListener('pointerup', onPointerUp, { once: true })
 }
 </script>
 

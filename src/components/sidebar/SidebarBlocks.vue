@@ -1,25 +1,23 @@
 <template>
   <div class="sidebar">
     <h3>Блоки</h3>
-    <CategoryItem 
+    <CategoryItem
       title="📋 Операторы"
       :expanded="expanded.operators"
       @toggle="toggleCategory('operators')"
     >
-      <BlockItem 
+      <BlockItem
         block-type="start"
         block-name="Начать"
         block-color="#4CAF50"
-        @dragstart="onDragStart"
+        @palette-drop="onPaletteDrop"
       />
-    </CategoryItem>
-    
-    <CategoryItem 
-      title="📊 Переменные"
-      :expanded="expanded.variables"
-      @toggle="toggleCategory('variables')"
-    >
-      <div class="empty-category">Скоро появятся</div>
+      <BlockItem
+        block-type="variable"
+        block-name="Переменная"
+        block-color="#9C27B0"
+        @palette-drop="onPaletteDrop"
+      />
     </CategoryItem>
   </div>
 </template>
@@ -29,19 +27,20 @@ import { reactive } from 'vue'
 import CategoryItem from './CategoryItem.vue'
 import BlockItem from './BlockItem.vue'
 
+const emit = defineEmits(['palette-drop'])
+
 const expanded = reactive({
   operators: true,
-  variables: false
 })
 
 const toggleCategory = (category) => {
   expanded[category] = !expanded[category]
 }
 
-const onDragStart = (event, blockData) => {
-  event.dataTransfer.setData('text/plain', JSON.stringify(blockData))
-  event.dataTransfer.effectAllowed = 'move'
+const onPaletteDrop = (payload) => {
+  emit('palette-drop', payload)
 }
+
 </script>
 
 <style scoped>
