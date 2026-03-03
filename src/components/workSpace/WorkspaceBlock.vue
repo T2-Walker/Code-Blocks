@@ -1,7 +1,11 @@
 <template>
-  <div
+  <div 
     class="workspace-block"
-    :class="{ dragging: isDragging, 'variable-block': isVariableBlock }"
+    :class="{ 
+      dragging: isDragging, 
+      'variable-block': block.type === 'variable',
+      'connection-source': isConnectionSource 
+    }"
     :style="{
       left: block.x + 'px',
       top: block.y + 'px',
@@ -9,329 +13,236 @@
     }"
     @pointerdown="startDrag"
   >
-    <template v-if="isVariableBlock">
-      <div class="variable-content">
-        <div class="variable-header">
-          <span class="variable-name" @click.stop="startEdit('name')">
-            <template v-if="editingField !== 'name'">
-              {{ display.name }}
-            </template>
-            <input
-              v-else
-              v-model="localName"
-              type="text"
-              class="inline-input"
-              :class="{ error: !!nameError }"
-              @keydown.enter.stop.prevent="commitName"
-              @blur="commitName"
-            />
-          </span>
-          <span class="variable-type" @click.stop="startEdit('type')">
-            <template v-if="editingField !== 'type'">
-              {{ display.type }}
-            </template>
-            <select
-              v-else
-              v-model="localType"
-              class="inline-select"
-              @change="commitType"
-              @blur="cancelEdit"
-            >
-              <option
-                v-for="type in variableTypes"
-                :key="type.value"
-                :value="type.value"
-              >
-                {{ type.label }}
-              </option>
-            </select>
-          </span>
-        </div>
-        <div class="variable-value" @click.stop="startEdit('value')">
-          <template v-if="editingField !== 'value'">
-            {{ display.value }}
-          </template>
+    <template v-if="block.type === 'variable'">
+      <div class="variable-content" @click.stop="handleVariableClick">
+        <template v-if="!isEditing">
+          <div class="variable-name-block">{{ displayName }}</div>
+          <div class="variable-value-block">{{ displayValue }}</div>
+        </template>
+        
+        <template v-else>
           <input
-            v-else-if="localType === 'int' || localType === 'string'"
-            v-model="localRawValue"
+            v-model="editName"
             type="text"
-            class="inline-input"
-            :class="{ error: !!valueError }"
-            @keydown.enter.stop.prevent="commitValue"
-            @blur="commitValue"
+            class="variable-edit-input"
+            placeholder="имя"
+            @keydown.enter.stop="saveChanges"
+            ref="nameInput"
           />
           <select
-            v-else-if="localType === 'boolean'"
-            v-model="localRawValue"
-            class="inline-select"
-            @change="commitValue"
-            @blur="cancelEdit"
+            v-model="editType"
+            class="variable-edit-select"
+            @change="onTypeChange"
           >
-            <option value="true">True</option>
-            <option value="false">False</option>
+            <option value="int">int</option>
+            <option value="string">string</option>
+            <option value="boolean">boolean</option>
           </select>
+          
           <input
-            v-else
-            v-model="localRawValue"
-            type="text"
-            class="inline-input"
-            :class="{ error: !!valueError }"
-            @keydown.enter.stop.prevent="commitValue"
-            @blur="commitValue"
+            v-if="editType === 'int'"
+            v-model.number="editValue"
+            type="number"
+            class="variable-edit-input"
+            placeholder="значение"
+            @keydown.enter.stop="saveChanges"
           />
-        </div>
+          <input
+            v-else-if="editType === 'string'"
+            v-model="editValue"
+            type="text"
+            class="variable-edit-input"
+            placeholder="значение"
+            @keydown.enter.stop="saveChanges"
+          />
+          <select
+            v-else-if="editType === 'boolean'"
+            v-model="editValue"
+            class="variable-edit-select"
+          >
+            <option :value="true">true</option>
+            <option :value="false">false</option>
+          </select>
+          
+          <div class="variable-edit-actions">
+            <button class="variable-save-btn" @click.stop="saveChanges">✓</button>
+            <button class="variable-cancel-btn" @click.stop="cancelEdit">✗</button>
+          </div>
+        </template>
       </div>
     </template>
 
-    <!-- Обычный блок -->
+<template v-else-if="block.type === 'math'">
+  <MathBlock
+    :block="block"
+    :bounds="bounds"
+    :is-connection-source="isConnectionSource"
+    @drag-start="$emit('drag-start', block.id)"
+    @drag-move="$emit('drag-move', $event)"
+    @drag-end="$emit('drag-end')"
+    @delete="$emit('delete', block.id)"
+    @start-connection="$emit('start-connection', block.id)"
+    @update-block="$emit('update-block', $event)"
+    @execute="onMathExecute"
+  />
+</template>
     <template v-else>
       <span>{{ block.name }}</span>
     </template>
+    <button 
+      class="connect-btn"
+      @click.stop="startConnection"
+      @pointerdown.stop
+    >
+      🔗
+    </button>
 
     <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import MathBlock from './MathBlock.vue'
+import { ref, computed, nextTick } from 'vue'
 import DeleteButton from '../UI/DeleteButton.vue'
 import { useVariables } from '@/composables/useVariables'
-import {
-  formatVariableForDisplay,
-  validateVariableName,
-  validateAndNormalizeValue,
-} from '@/domain/logic'
 
 const props = defineProps({
   block: Object,
   bounds: Object,
+  isConnectionSource: Boolean
 })
 
-const emit = defineEmits(['drag-start', 'drag-move', 'drag-end', 'delete'])
 
+
+const emit = defineEmits([
+  'drag-start', 
+  'drag-move', 
+  'drag-end', 
+  'delete',
+  'start-connection',
+  'update-block',
+  'math-execute'
+])
+
+const onMathExecute = (data) => {
+  console.log('WorkspaceBlock onMathExecute:', data)
+  emit('math-execute', data)
+}
+
+const handleBlockUpdate = (blockData) => {
+  console.log('WorkspaceArea handleBlockUpdate:', blockData)
+  emit('update-block', blockData)
+}
+
+const { variableTypes, getVariableByName, upsertVariable } = useVariables()
 const isDragging = ref(false)
-const editingField = ref(null)
-const localName = ref('')
-const localType = ref('int')
-const localRawValue = ref('')
-const nameError = ref('')
-const valueError = ref('')
+const isEditing = ref(false)
 
-const { variables, variableTypes, upsertVariable, getVariableByName } = useVariables()
-
-const isVariableBlock = computed(() => props.block.type === 'variable')
+const editName = ref('')
+const editType = ref('int')
+const editValue = ref('')
+const nameInput = ref(null)
 
 const currentVariable = computed(() => {
-  if (!props.block.variableName) return undefined
+  if (!props.block.variableName) return null
   return getVariableByName(props.block.variableName)
 })
 
-const display = computed(() => {
-  if (editingField.value) {
-    // во время редактирования отображаем локальные значения
-    const temp = {
-      name: localName.value,
-      type: localType.value,
-      value: localRawValue.value,
-    }
-    return formatVariableForDisplay(temp)
-  }
-
-  if (currentVariable.value) {
-    return formatVariableForDisplay(currentVariable.value)
-  }
-
-  if (props.block.variableName || props.block.variableType || props.block.variableValue != null) {
-    return formatVariableForDisplay({
-      name: props.block.variableName,
-      type: props.block.variableType || 'int',
-      value: props.block.variableValue,
-    })
-  }
-
-  return formatVariableForDisplay(null)
+const displayName = computed(() => {
+  if (currentVariable.value) return currentVariable.value.name
+  return props.block.variableName || 'variable'
 })
 
-watch(
-  () => props.block,
-  (block) => {
-    if (!editingField.value) {
-      const baseName = block.variableName || currentVariable.value?.name || ''
-      const baseType = block.variableType || currentVariable.value?.type || 'int'
-      const baseValue =
-        block.variableValue ??
-        currentVariable.value?.value ??
-        (baseType === 'int' ? 1 : baseType === 'boolean' ? true : '')
+const displayType = computed(() => {
+  if (currentVariable.value) return currentVariable.value.type
+  return props.block.variableType || 'int'
+})
 
-      localName.value = baseName
-      localType.value = baseType
-      localRawValue.value = baseValue
-    }
-  },
-  { immediate: true, deep: true },
-)
-
-const startEdit = (field) => {
-  if (!isVariableBlock.value) return
-  editingField.value = field
-  nameError.value = ''
-  valueError.value = ''
-
-  if (field === 'name') {
-    localName.value = currentVariable.value?.name || props.block.variableName || ''
+const displayValue = computed(() => {
+  if (currentVariable.value) {
+    const val = currentVariable.value.value
+    if (currentVariable.value.type === 'string') return `"${val}"`
+    if (currentVariable.value.type === 'boolean') return val ? 'true' : 'false'
+    return val
   }
-  if (field === 'type') {
-    localType.value = currentVariable.value?.type || props.block.variableType || 'int'
+  if (props.block.variableValue !== undefined) {
+    if (props.block.variableType === 'string') return `"${props.block.variableValue}"`
+    return props.block.variableValue
   }
-  if (field === 'value') {
-    const base = currentVariable.value?.value ?? props.block.variableValue
-    if (localType.value === 'boolean') {
-      localRawValue.value = base === true ? 'true' : base === false ? 'false' : 'false'
-    } else {
-      localRawValue.value =
-        base === undefined || base === null
-          ? localType.value === 'int'
-            ? '1'
-            : ''
-          : String(base)
-    }
+  return '—'
+})
+
+const handleVariableClick = async () => {
+  if (isEditing.value) return
+  
+  isEditing.value = true
+  
+  if (currentVariable.value) {
+    editName.value = currentVariable.value.name
+    editType.value = currentVariable.value.type
+    editValue.value = currentVariable.value.value
+  } else {
+    editName.value = props.block.variableName || ''
+    editType.value = props.block.variableType || 'int'
+    editValue.value = props.block.variableValue ?? 
+      (editType.value === 'int' ? 1 : editType.value === 'boolean' ? true : '')
+  }
+  
+  await nextTick()
+  nameInput.value?.focus()
+  nameInput.value?.select()
+}
+
+const onTypeChange = () => {
+  if (editType.value === 'int') editValue.value = 1
+  else if (editType.value === 'boolean') editValue.value = true
+  else if (editType.value === 'string') editValue.value = ''
+}
+
+const saveChanges = () => {
+  if (!editName.value.trim()) {
+    alert('Имя переменной не может быть пустым')
+    return
+  }
+  
+  const newName = editName.value.trim()
+  const oldName = props.block.variableName
+  
+  try {
+    upsertVariable({
+      oldName,
+      name: newName,
+      type: editType.value,
+      value: editValue.value
+    })
+    
+    emit('update-block', {
+      id: props.block.id,
+      variableName: newName,
+      variableType: editType.value,
+      variableValue: editValue.value,
+      x: props.block.x,
+      y: props.block.y
+    })
+    
+    isEditing.value = false
+  } catch (e) {
+    alert(e.message)
   }
 }
 
 const cancelEdit = () => {
-  editingField.value = null
-  nameError.value = ''
-  valueError.value = ''
-}
-
-const commitName = () => {
-  const existingNames = variables.value
-    .map((v) => v.name)
-    .filter((n) => n !== (currentVariable.value?.name || ''))
-
-  const result = validateVariableName(localName.value, existingNames)
-  if (!result.ok) {
-    nameError.value = result.error
-    return
-  }
-
-  nameError.value = ''
-
-  const oldName = currentVariable.value?.name || props.block.variableName || ''
-  const type = currentVariable.value?.type || localType.value || 'int'
-  const value = currentVariable.value?.value ?? localRawValue.value ?? 1
-
-  try {
-    upsertVariable({
-      oldName: oldName || undefined,
-      name: result.value,
-      type,
-      value,
-    })
-  } catch (e) {
-    nameError.value = e.message
-    return
-  }
-
-  emit('update-block', {
-    id: props.block.id,
-    variableName: result.value,
-    variableType: type,
-    variableValue: value,
-  })
-
-  editingField.value = null
-}
-
-const commitType = () => {
-  const newType = localType.value
-  // при смене типа сбрасываем значение
-  localRawValue.value = newType === 'int' ? '1' : newType === 'boolean' ? 'false' : ''
-  valueError.value = ''
-
-  const name = currentVariable.value?.name || props.block.variableName || localName.value
-  if (!name) {
-    // ещё не задано имя — просто обновляем локальное состояние блока
-    emit('update-block', {
-      id: props.block.id,
-      variableType: newType,
-      variableValue: newType === 'int' ? 1 : newType === 'boolean' ? false : '',
-    })
-    editingField.value = null
-    return
-  }
-
-  const valueResult = validateAndNormalizeValue(newType, localRawValue.value)
-  if (!valueResult.ok) {
-    valueError.value = valueResult.error
-    return
-  }
-
-  try {
-    upsertVariable({
-      oldName: name,
-      name,
-      type: newType,
-      value: valueResult.value,
-    })
-  } catch (e) {
-    valueError.value = e.message
-    return
-  }
-
-  emit('update-block', {
-    id: props.block.id,
-    variableName: name,
-    variableType: newType,
-    variableValue: valueResult.value,
-  })
-
-  editingField.value = null
-}
-
-const commitValue = () => {
-  const type = localType.value
-  const result = validateAndNormalizeValue(type, localRawValue.value)
-  if (!result.ok) {
-    valueError.value = result.error
-    return
-  }
-
-  valueError.value = ''
-
-  const name = currentVariable.value?.name || props.block.variableName || localName.value
-
-  if (name) {
-    try {
-      upsertVariable({
-        oldName: name,
-        name,
-        type,
-        value: result.value,
-      })
-    } catch (e) {
-      valueError.value = e.message
-      return
-    }
-  }
-
-  emit('update-block', {
-    id: props.block.id,
-    variableName: name,
-    variableType: type,
-    variableValue: result.value,
-  })
-
-  editingField.value = null
+  isEditing.value = false
 }
 
 const startDrag = (event) => {
-  // не перетаскиваем если кликнули на значение переменной или на крестик
-  if (event.target.classList.contains('delete-btn')) return
-  if (event.target.closest('.variable-content')) {
-    // внутри блока переменной drag не должен начинаться, если идёт редактирование
-    if (editingField.value) return
-  }
+  if (event.target.closest('.delete-btn')) return
+  if (event.target.closest('.connect-btn')) return
+  if (event.target.closest('input')) return
+  if (event.target.closest('select')) return
+  if (event.target.closest('button')) return
+  if (isEditing.value) return
 
   event.preventDefault()
   isDragging.value = true
@@ -350,8 +261,10 @@ const startDrag = (event) => {
     let newX = startBlockX + dx
     let newY = startBlockY + dy
 
-    newX = Math.max(props.bounds.minX, Math.min(newX, props.bounds.maxX))
-    newY = Math.max(props.bounds.minY, Math.min(newY, props.bounds.maxY))
+    if (props.bounds) {
+      newX = Math.max(props.bounds.minX, Math.min(newX, props.bounds.maxX))
+      newY = Math.max(props.bounds.minY, Math.min(newY, props.bounds.maxY))
+    }
 
     emit('drag-move', { id: props.block.id, x: newX, y: newY })
   }
@@ -368,6 +281,11 @@ const startDrag = (event) => {
   document.addEventListener('pointerup', onPointerUp)
   document.addEventListener('pointercancel', onPointerUp)
 }
+
+const startConnection = (event) => {
+  event.stopPropagation()
+  emit('start-connection', props.block.id)
+}
 </script>
 
 <style scoped>
@@ -380,13 +298,12 @@ const startDrag = (event) => {
   text-align: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   user-select: none;
-  transition:
-    box-shadow 0.2s,
-    transform 0.1s;
+  transition: box-shadow 0.2s, transform 0.1s;
   will-change: left, top;
   border: 2px solid transparent;
   color: white;
   font-weight: bold;
+  z-index: 10;
 }
 
 .workspace-block:hover {
@@ -396,75 +313,119 @@ const startDrag = (event) => {
 
 .workspace-block.dragging {
   opacity: 0.9;
+  z-index: 1000;
   transform: scale(1.02);
   box-shadow: 0 8px 12px rgba(0, 0, 0, 0.5);
 }
 
-.variable-block {
-  min-width: 160px;
-  padding: 12px;
-  cursor: pointer;
-}
-
-.variable-block:hover {
-  filter: brightness(1.05);
+.workspace-block.connection-source {
+  border-color: #ff9800;
+  box-shadow: 0 0 0 2px #ff9800;
 }
 
 .variable-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  padding: 4px;
 }
 
-.variable-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.variable-name {
+.variable-name-block {
   font-size: 14px;
   font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.variable-type {
-  font-size: 11px;
-  padding: 2px 6px;
-  background-color: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  text-transform: lowercase;
-}
-
-.variable-value {
-  font-size: 13px;
-  padding: 6px;
+  padding: 4px 8px;
   background-color: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
+  text-align: left;
+}
+
+.variable-value-block {
+  font-size: 13px;
+  padding: 4px 8px;
+  background-color: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
   font-family: monospace;
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: left;
 }
 
-.inline-input,
-.inline-select {
+.variable-edit-input,
+.variable-edit-select {
   width: 100%;
-  border: none;
-  outline: none;
-  border-radius: 3px;
-  padding: 2px 4px;
-  font-size: 12px;
+  padding: 6px 8px;
+  border: 1px solid #4CAF50;
+  border-radius: 4px;
+  font-size: 13px;
+  background: white;
+  color: #333;
+  margin-bottom: 4px;
 }
 
-.inline-input.error,
-.inline-select.error {
-  border: 1px solid #ff6b6b;
+.variable-edit-select {
+  cursor: pointer;
+}
+
+.variable-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.variable-save-btn,
+.variable-cancel-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.variable-save-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.variable-save-btn:hover {
+  background-color: #45a049;
+}
+
+.variable-cancel-btn {
+  background-color: #ff4444;
+  color: white;
+}
+
+.variable-cancel-btn:hover {
+  background-color: #cc0000;
+}
+
+.connect-btn {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 24px;
+  height: 24px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.workspace-block:hover .connect-btn {
+  opacity: 1;
+}
+
+.connect-btn:hover {
+  background-color: #45a049;
+  transform: scale(1.1);
 }
 </style>
