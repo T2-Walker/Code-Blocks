@@ -35,8 +35,7 @@ const onPointerDown = (event) => {
   const onPointerUp = (e) => {
     const dx = Math.abs(e.clientX - startX)
     const dy = Math.abs(e.clientY - startY)
-
-    // Небольшой порог, чтобы не реагировать на случайный клик
+    
     if (dx > 3 || dy > 3) {
       emit('palette-drop', {
         ...payload,
@@ -55,13 +54,18 @@ const onPointerDown = (event) => {
 
 <style scoped>
 .block-item {
-  padding: 15px;
+  padding: 12px 15px;
   border-radius: 5px;
   cursor: grab;
   text-align: center;
   transition: transform 0.1s, opacity 0.1s;
   color: white;
   font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.block-item:last-child {
+  margin-bottom: 0;
 }
 
 .block-item:active {

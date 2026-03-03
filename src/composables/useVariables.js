@@ -8,10 +8,9 @@ export function useVariables() {
   return {
     variables,
     variableTypes,
-
-    isNameUnique: store.isNameUnique,
-    upsertVariable: store.upsertVariable,
-    getVariableByName: store.getVariableByName,
-    deleteVariableByName: store.deleteVariableByName,
+    isNameUnique: store.isNameUnique.bind(store),
+    upsertVariable: store.upsertVariable.bind(store),
+    getVariableByName: store.getVariableByName.bind(store),
+    deleteVariableByName: store.deleteVariableByName.bind(store),
   }
 }
