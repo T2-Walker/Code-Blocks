@@ -9,7 +9,7 @@
       <div class="math-row math-target-row">
         <select v-model="targetVariable" class="math-target-select" @change="onTargetChange">
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
@@ -29,7 +29,7 @@
           @change="emitUpdate"
         >
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
@@ -67,7 +67,7 @@
           @change="emitUpdate"
         >
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
@@ -104,11 +104,14 @@
 import { ref, computed, watch } from 'vue'
 import DeleteButton from '../UI/DeleteButton.vue'
 import { useVariables } from '@/composables/useVariables'
+import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext'
 
 const props = defineProps({
   block: Object,
   bounds: Object,
-  isConnectionSource: Boolean
+  isConnectionSource: Boolean,
+  allBlocks: Array,
+  allConnections: Array,
 })
 
 const emit = defineEmits([
@@ -127,6 +130,49 @@ const operator = ref(props.block.operator || '+')
 const rightType = ref(props.block.rightType || 'variable')
 const rightVariable = ref(props.block.rightVariable || '')
 const rightNumber = ref(props.block.rightNumber || 0)
+
+const allowedNames = computed(() => {
+  return getDeclaredVariableNamesBeforeBlock(
+    props.allBlocks || [],
+    props.allConnections || [],
+    props.block.id,
+  )
+})
+
+const allowedNameSet = computed(() => new Set(allowedNames.value))
+
+const allowedVariables = computed(() => {
+  // сохраняем порядок из цепочки; берём только реально существующие переменные
+  const byName = new Map((variables.value || []).map((v) => [v.name, v]))
+  return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
+})
+
+watch(
+  allowedNameSet,
+  (set) => {
+    let changed = false
+
+    if (targetVariable.value && !set.has(targetVariable.value)) {
+      targetVariable.value = ''
+      changed = true
+    }
+
+    if (leftType.value === 'variable' && leftVariable.value && !set.has(leftVariable.value)) {
+      leftVariable.value = ''
+      changed = true
+    }
+
+    if (rightType.value === 'variable' && rightVariable.value && !set.has(rightVariable.value)) {
+      rightVariable.value = ''
+      changed = true
+    }
+
+    if (changed) {
+      emitUpdate()
+    }
+  },
+  { immediate: true },
+)
 
 const computedResult = computed(() => {
   let leftVal = 0
