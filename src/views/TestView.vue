@@ -216,6 +216,13 @@ const runExecution = () => {
           addLine('Math-блок без целевой переменной, пропуск', 'error')
           continue
         }
+        if (!knownVarsSet.has(block.targetVariable)) {
+          addLine(
+            `Ошибка: целевая переменная "${block.targetVariable}" не объявлена в цепочке до math-блока`,
+            'error',
+          )
+          continue
+        }
 
         let leftVal = 0
         if (block.leftType === 'variable') {
@@ -277,7 +284,6 @@ const runExecution = () => {
         }
 
         updateVariableValue(block.targetVariable, result)
-        touchVar(block.targetVariable)
         addLine(`📝 ${block.targetVariable} = ${result}`, 'print')
       }
 

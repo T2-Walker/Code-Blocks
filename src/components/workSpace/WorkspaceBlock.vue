@@ -77,6 +77,8 @@
     :block="block"
     :bounds="bounds"
     :is-connection-source="isConnectionSource"
+    :all-blocks="allBlocks"
+    :all-connections="allConnections"
     @drag-start="$emit('drag-start', block.id)"
     @drag-move="$emit('drag-move', $event)"
     @drag-end="$emit('drag-end')"
@@ -110,7 +112,9 @@ import { useVariables } from '@/composables/useVariables'
 const props = defineProps({
   block: Object,
   bounds: Object,
-  isConnectionSource: Boolean
+  isConnectionSource: Boolean,
+  allBlocks: Array,
+  allConnections: Array,
 })
 
 
@@ -130,12 +134,7 @@ const onMathExecute = (data) => {
   emit('math-execute', data)
 }
 
-const handleBlockUpdate = (blockData) => {
-  console.log('WorkspaceArea handleBlockUpdate:', blockData)
-  emit('update-block', blockData)
-}
-
-const { variableTypes, getVariableByName, upsertVariable } = useVariables()
+const { getVariableByName, upsertVariable } = useVariables()
 const isDragging = ref(false)
 const isEditing = ref(false)
 
@@ -152,11 +151,6 @@ const currentVariable = computed(() => {
 const displayName = computed(() => {
   if (currentVariable.value) return currentVariable.value.name
   return props.block.variableName || 'variable'
-})
-
-const displayType = computed(() => {
-  if (currentVariable.value) return currentVariable.value.type
-  return props.block.variableType || 'int'
 })
 
 const displayValue = computed(() => {

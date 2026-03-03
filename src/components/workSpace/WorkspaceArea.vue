@@ -47,6 +47,8 @@
       v-for="block in blocks"
       :key="block.id"
       :block="block"
+      :all-blocks="blocks"
+      :all-connections="connections"
       :bounds="bounds"
       :is-connection-source="isConnecting && sourceBlockId === block.id"
       @drag-start="setDraggingId"
