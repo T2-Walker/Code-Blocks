@@ -54,7 +54,6 @@ const goToTest = () => {
   font-weight: bold;
   cursor: pointer;
   margin-top: 20px;
-  font-family: 'Silkscreen', cursive;
 
   transition: all 0.3s ease;
 }

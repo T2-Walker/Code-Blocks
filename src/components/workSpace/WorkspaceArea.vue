@@ -70,11 +70,10 @@ import { createVariableBlockAtPosition } from '@/domain/logic'
 import { 
   createConnection, 
   deleteConnection as removeConnection,
-  getAllConnections,
   deleteConnectionsForBlock
 } from '@/domain/connections'
 import { createTempLine } from '@/domain/connectionLine'
-import { canConnectBlocks } from '@/domain/connectionLine'
+import { canConnectBlocks } from '@/domain/connections'
 import { useTerminal } from '@/composables/useTerminal'
 
 const props = defineProps({
@@ -174,19 +173,12 @@ const completeConnection = (targetBlockId) => {
   
   if (!sourceBlock || !targetBlock) return
   
-  const canConnectBlocks = (sourceBlock, targetBlock) => {
-  if (!sourceBlock || !targetBlock) return { allowed: false, reason: 'Блок не существует' }
-  if (sourceBlock.id === targetBlock.id) return { allowed: false, reason: 'Нельзя соединить блок с самим собой' }
-  
-  const exists = props.connections.some(
-    conn => (conn.from === sourceBlock.id && conn.to === targetBlock.id) ||
-            (conn.from === targetBlock.id && conn.to === sourceBlock.id)
-  )
-  
-  if (exists) return { allowed: false, reason: 'Связь уже существует' }
-  
-  return { allowed: true }
-}
+  const check = canConnectBlocks(sourceBlock, targetBlock, props.connections || [], props.blocks || [])
+  if (!check.allowed) {
+    addLine(`❌ ${check.reason}`, 'error')
+    cancelConnection()
+    return
+  }
   
   const newConnection = createConnection(sourceBlockId.value, targetBlockId)
   if (newConnection) {

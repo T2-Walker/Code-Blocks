@@ -40,16 +40,15 @@
 <script setup>
 
 import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import SidebarBlocks from '@/components/sidebar/SidebarBlocks.vue'
 import WorkspaceArea from '@/components/workSpace/WorkspaceArea.vue'
 import DraggableTerminal from '@/components/UI/DraggableTerminal.vue'
 import { useTerminal } from '@/composables/useTerminal'
 import { useExecutionState } from '@/composables/useExecutionState'
 import { getAllConnections } from '@/domain/connections'
+import { buildExecutionChains } from '@/domain/executionChains'
 import { useVariables } from '@/composables/useVariables'
 
-const router = useRouter()
 const blocks = ref([])
 const workspaceAreaRef = ref(null)
 const connections = ref([])
@@ -183,98 +182,119 @@ const runExecution = () => {
   }
 
   saveInitialState(variables.value)
-  
-  const allVariables = {}
-  variables.value.forEach(v => {
-    allVariables[v.name] = v.value
-  })
-  
-  console.log('Все переменные:', allVariables)
-  console.log('=== ПРОВЕРКА ПЕРЕМЕННЫХ ===')
-console.log('Имена переменных:', Object.keys(allVariables))
-console.log('Значения:', Object.values(allVariables))
-  
-  const mathBlocks = blocks.value.filter(b => b.type === 'math')
-  
-  mathBlocks.forEach(mathBlock => {
-  console.log('Math блок ПОЛНОСТЬЮ:', JSON.parse(JSON.stringify(mathBlock)))
-  
-  console.log('leftVariable value:', mathBlock.leftVariable)
-  console.log('rightVariable value:', mathBlock.rightVariable)
-    console.log('Math блок ПОЛНОСТЬЮ:', JSON.parse(JSON.stringify(mathBlock)))
-    
-    if (!mathBlock.targetVariable) {
-      console.log('Math блок без целевой переменной')
-      return
-    }
-    
-    console.log('Math блок данные:', {
-      targetVariable: mathBlock.targetVariable,
-      leftType: mathBlock.leftType,
-      leftVariable: mathBlock.leftVariable,
-      leftNumber: mathBlock.leftNumber,
-      operator: mathBlock.operator,
-      rightType: mathBlock.rightType,
-      rightVariable: mathBlock.rightVariable,
-      rightNumber: mathBlock.rightNumber
-    })
-let leftVal = 0
-if (mathBlock.leftType === 'variable') {
-  leftVal = allVariables[mathBlock.leftVariable] !== undefined ? allVariables[mathBlock.leftVariable] : 0
-  console.log(`Левая переменная ${mathBlock.leftVariable} = ${leftVal}`)
-} else {
-  leftVal = mathBlock.leftNumber || 0
-  console.log(`Левое число = ${leftVal}`)
-}
+ 
+  const { chains, reachableIds } = buildExecutionChains(blocks.value)
 
-let rightVal = 0
-if (mathBlock.rightType === 'variable') {
-  console.log('Looking for right variable:', mathBlock.rightVariable)
-  rightVal = allVariables[mathBlock.rightVariable] !== undefined ? allVariables[mathBlock.rightVariable] : 0
-  console.log(`Правая переменная ${mathBlock.rightVariable} = ${rightVal}`)
-} else {
-  rightVal = mathBlock.rightNumber || 0
-  console.log(`Правое число = ${rightVal}`)
-}
-    
-    let result
-    switch (mathBlock.operator) {
-      case '+': result = leftVal + rightVal; break
-      case '-': result = leftVal - rightVal; break
-      case '*': result = leftVal * rightVal; break
-      case '/': result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'; break
-      case '%': result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'; break
-      default: result = 0
+  const getVarValueByName = (name) => {
+    const v = getVariableByName(name)
+    return v ? v.value : undefined
+  }
+
+  for (const chain of chains) {
+    const knownVarsSet = new Set()
+    const varsOrder = []
+
+    const touchVar = (name) => {
+      if (!name) return
+      if (!knownVarsSet.has(name)) {
+        knownVarsSet.add(name)
+        varsOrder.push(name)
+      }
     }
-    
-    console.log(`Результат: ${leftVal} ${mathBlock.operator} ${rightVal} = ${result}`)
-    
-    if (result !== 'Ошибка') {
-      console.log('About to update variable:', mathBlock.targetVariable, 'with value:', result)
-      updateVariableValue(mathBlock.targetVariable, result)
-      addLine(`📝 ${mathBlock.targetVariable} = ${result}`, 'print')
-    }
-  })
-  
-  const printBlocks = blocks.value.filter(b => b.type === 'print')
-  
-  printBlocks.forEach(printBlock => {
-    const printConnections = connections.value.filter(
-      conn => conn.from === printBlock.id || conn.to === printBlock.id
-    )
-    
-    printConnections.forEach(conn => {
-      const otherId = conn.from === printBlock.id ? conn.to : conn.from
-      const otherBlock = blocks.value.find(b => b.id === otherId)
-      
-      if (otherBlock && otherBlock.type === 'variable') {
-        const variable = variables.value.find(v => v.name === otherBlock.variableName)
-        if (variable) {
-          addLine(`📝 ${variable.name} = ${variable.value}`, 'print')
+
+    for (const block of chain) {
+      if (!reachableIds.has(block.id)) continue
+
+      if (block.type === 'variable') {
+        if (block.variableName) {
+          touchVar(block.variableName)
         }
       }
-    })
-  })
+
+      if (block.type === 'math') {
+        if (!block.targetVariable) {
+          addLine('Math-блок без целевой переменной, пропуск', 'error')
+          continue
+        }
+
+        let leftVal = 0
+        if (block.leftType === 'variable') {
+          if (!knownVarsSet.has(block.leftVariable)) {
+            addLine(
+              `Ошибка: переменная "${block.leftVariable}" не объявлена в цепочке до math-блока`,
+              'error',
+            )
+            continue
+          }
+          const v = getVarValueByName(block.leftVariable)
+          leftVal = typeof v === 'number' ? v : 0
+        } else {
+          leftVal = block.leftNumber || 0
+        }
+
+        let rightVal = 0
+        if (block.rightType === 'variable') {
+          if (!knownVarsSet.has(block.rightVariable)) {
+            addLine(
+              `Ошибка: переменная "${block.rightVariable}" не объявлена в цепочке до math-блока`,
+              'error',
+            )
+            continue
+          }
+          const v = getVarValueByName(block.rightVariable)
+          rightVal = typeof v === 'number' ? v : 0
+        } else {
+          rightVal = block.rightNumber || 0
+        }
+
+        let result
+        switch (block.operator) {
+          case '+':
+            result = leftVal + rightVal
+            break
+          case '-':
+            result = leftVal - rightVal
+            break
+          case '*':
+            result = leftVal * rightVal
+            break
+          case '/':
+            result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
+            break
+          case '%':
+            result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
+            break
+          default:
+            result = 0
+        }
+
+        if (result === 'Ошибка') {
+          addLine(
+            `Ошибка в math-блоке для переменной "${block.targetVariable}": деление на ноль`,
+            'error',
+          )
+          continue
+        }
+
+        updateVariableValue(block.targetVariable, result)
+        touchVar(block.targetVariable)
+        addLine(`📝 ${block.targetVariable} = ${result}`, 'print')
+      }
+
+      if (block.type === 'print') {
+        if (varsOrder.length === 0) {
+          addLine('Переменные: (в этой цепочке ещё нет переменных)', 'output')
+        } else {
+          addLine('Переменные:', 'output')
+          for (const name of varsOrder) {
+            const v = getVariableByName(name)
+            if (!v) continue
+            addLine(`"${v.name}" = "${v.value}"`, 'print')
+          }
+        }
+      }
+    }
+  }
   
   setExecuted()
   addLine('--- Выполнение завершено ---', 'output')
