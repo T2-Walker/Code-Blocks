@@ -1,20 +1,17 @@
 export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetBlockId) {
   const byId = new Map(blocks.map((b) => [b.id, b]))
 
-  // incoming: one predecessor for non-start (but we still compute it generally)
   const prevMap = new Map()
-  // outgoing: may have multiple for start, but in current rules only 1
   const nextMap = new Map()
 
   for (const conn of connections || []) {
     if (!nextMap.has(conn.from)) nextMap.set(conn.from, [])
     nextMap.get(conn.from).push(conn.to)
 
-    // keep first predecessor; constraints should prevent >1 for non-start targets
     if (!prevMap.has(conn.to)) prevMap.set(conn.to, conn.from)
   }
 
-  // Find nearest start upstream (do NOT go past start even if it has incoming links)
+
   let currentId = targetBlockId
   const visited = new Set()
   let startId = null
@@ -32,7 +29,6 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
 
   if (!startId) return []
 
-  // Walk forward from start until reaching targetBlockId, collecting declared/changed variables
   const names = []
   const seen = new Set()
   let walkId = startId

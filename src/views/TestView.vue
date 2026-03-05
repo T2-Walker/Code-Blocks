@@ -104,10 +104,10 @@ const addBlock = (newBlock) => {
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
 
-const updateBlockPosition = ({ id, x, y, variableName, variableType, variableValue, targetVariable, leftType, leftVariable, leftNumber, operator, rightType, rightVariable, rightNumber }) => {
-  console.log('TestView updateBlockPosition:', { 
+const updateBlockPosition = ({ id, x, y, variableName, variableType, variableValue, targetVariable, leftType, leftVariable, leftNumber, operator, rightType, rightVariable, rightNumber, selectedVariables, comparator }) => {
+  console.log('📥 TestView updateBlockPosition:', { 
     id, x, y, variableName, variableType, variableValue, 
-    targetVariable, leftVariable, rightVariable 
+    targetVariable, leftVariable, rightVariable, selectedVariables, comparator 
   })
   
   const block = blocks.value.find((b) => b.id === id)
@@ -125,6 +125,8 @@ const updateBlockPosition = ({ id, x, y, variableName, variableType, variableVal
     if (rightType !== undefined) block.rightType = rightType
     if (rightVariable !== undefined) block.rightVariable = rightVariable
     if (rightNumber !== undefined) block.rightNumber = rightNumber
+    if (selectedVariables !== undefined) block.selectedVariables = selectedVariables
+    if (comparator !== undefined) block.comparator = comparator // ЭТО ВАЖНО!
   }
 }
 
@@ -163,7 +165,6 @@ const onMathExecute = ({ result, targetVariable }) => {
   console.log('TestView onMathExecute:', { result, targetVariable })
   if (targetVariable && isExecuted.value) {
     updateVariableValue(targetVariable, result)
-    addLine(`📝 ${targetVariable} = ${result}`, 'print')
   }
 }
 
@@ -210,6 +211,76 @@ const runExecution = () => {
           touchVar(block.variableName)
         }
       }
+// ========== IF БЛОК ==========
+if (block.type === 'if') {
+  console.log('🔍 IF block data:', {
+    leftType: block.leftType,
+    leftVariable: block.leftVariable,
+    leftNumber: block.leftNumber,
+    comparator: block.comparator,
+    rightType: block.rightType,
+    rightVariable: block.rightVariable,
+    rightNumber: block.rightNumber
+  })
+  
+  if (block.leftType === 'variable' && !knownVarsSet.has(block.leftVariable)) {
+    addLine(
+      `❌ Ошибка: переменная "${block.leftVariable}" не объявлена в цепочке до if-блока`,
+      'error',
+    )
+    break
+  }
+  
+  if (block.rightType === 'variable' && !knownVarsSet.has(block.rightVariable)) {
+    addLine(
+      `❌ Ошибка: переменная "${block.rightVariable}" не объявлена в цепочке до if-блока`,
+      'error',
+    )
+    break
+  }
+
+  let leftVal = 0
+  let leftDisplay = ''
+  if (block.leftType === 'variable') {
+    const v = getVarValueByName(block.leftVariable)
+    leftVal = typeof v === 'number' ? v : 0
+    leftDisplay = `${block.leftVariable} (${leftVal})`
+  } else {
+    leftVal = block.leftNumber || 0
+    leftDisplay = String(leftVal)
+  }
+
+  let rightVal = 0
+  let rightDisplay = ''
+  if (block.rightType === 'variable') {
+    const v = getVarValueByName(block.rightVariable)
+    rightVal = typeof v === 'number' ? v : 0
+    rightDisplay = `${block.rightVariable} (${rightVal})`
+  } else {
+    rightVal = block.rightNumber || 0
+    rightDisplay = String(rightVal)
+  }
+
+  let conditionMet = false
+  const comparator = block.comparator || '=='
+  
+  switch (comparator) {
+    case '==': conditionMet = leftVal == rightVal; break
+    case '!=': conditionMet = leftVal != rightVal; break
+    case '>': conditionMet = leftVal > rightVal; break
+    case '<': conditionMet = leftVal < rightVal; break
+    case '>=': conditionMet = leftVal >= rightVal; break
+    case '<=': conditionMet = leftVal <= rightVal; break
+  }
+
+  if (conditionMet) {
+    addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
+  } else {
+    addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
+    break
+  }
+}
+      // ========== КОНЕЦ IF БЛОКА ==========
 
       if (block.type === 'math') {
         if (!block.targetVariable) {
@@ -284,18 +355,28 @@ const runExecution = () => {
         }
 
         updateVariableValue(block.targetVariable, result)
-        addLine(`📝 ${block.targetVariable} = ${result}`, 'print')
+        
       }
 
       if (block.type === 'print') {
-        if (varsOrder.length === 0) {
-          addLine('Переменные: (в этой цепочке ещё нет переменных)', 'output')
+        const varsToPrint = block.selectedVariables || []
+        
+        if (varsToPrint.length === 0) {
+          addLine('Нет переменных для вывода', 'output')
         } else {
-          addLine('Переменные:', 'output')
-          for (const name of varsOrder) {
-            const v = getVariableByName(name)
-            if (!v) continue
-            addLine(`"${v.name}" = "${v.value}"`, 'print')
+          addLine('Вывод:', 'output')
+          for (const varName of varsToPrint) {
+            if (!knownVarsSet.has(varName)) {
+              addLine(`  ${varName} = (не объявлена в цепочке)`, 'error')
+              continue
+            }
+            
+            const v = getVariableByName(varName)
+            if (v) {
+              addLine(`  ${v.name} = ${v.value}`, 'print')
+            } else {
+              addLine(`  ${varName} = (не найдена)`, 'error')
+            }
           }
         }
       }
@@ -305,12 +386,12 @@ const runExecution = () => {
   setExecuted()
   addLine('--- Выполнение завершено ---', 'output')
 }
-
 const endExecution = () => {
   restoreInitialState(updateVariableValue)
   resetExecution()
   addLine('🔄 Возврат к начальным значениям', 'output')
 }
+
 </script>
 
 <style scoped>
