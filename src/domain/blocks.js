@@ -18,7 +18,12 @@ export const BLOCK_TYPES = {
     type: 'math',
     label: 'Math',
     color: '#FF5722',
-  }
+  },
+  if: {
+  type: 'if',
+  label: 'Условие',
+  color: '#FFC107',
+}
 }
 
 export const MATH_OPERATIONS = [

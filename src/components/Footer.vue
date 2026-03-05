@@ -10,10 +10,10 @@
 <style scoped>
 .footer a {
   font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  color: rgba(255, 255, 255, 0.5); /* неяркий белый */
+  color: rgba(255, 255, 255, 0.5);
   text-decoration: none;
   font-size: 0.95em;
-  text-transform: uppercase; /* заглавные буквы */
+  text-transform: uppercase;
   letter-spacing: 1.5px;
 }
 </style>

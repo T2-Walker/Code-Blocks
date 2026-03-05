@@ -30,6 +30,12 @@
   block-color="#FF5722"
   @palette-drop="onPaletteDrop"
 />
+<BlockItem
+  block-type="if"
+  block-name="Условие"
+  block-color="#FFC107"
+  @palette-drop="onPaletteDrop"
+/>
     </CategoryItem>
   </div>
 </template>

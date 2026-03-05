@@ -88,6 +88,37 @@
     @execute="onMathExecute"
   />
 </template>
+<template v-else-if="block.type === 'if'">
+  <IfBlock
+    :block="block"
+    :bounds="bounds"
+    :is-connection-source="isConnectionSource"
+    :all-blocks="allBlocks"
+    :all-connections="allConnections"
+    @drag-start="$emit('drag-start', block.id)"
+    @drag-move="$emit('drag-move', $event)"
+    @drag-end="$emit('drag-end')"
+    @delete="$emit('delete', block.id)"
+    @start-connection="$emit('start-connection', block.id)"
+    @update-block="$emit('update-block', $event)"
+  />
+</template>
+<template v-else-if="block.type === 'print'">
+  <PrintBlock
+    :block="block"
+    :bounds="bounds"
+    :is-connection-source="isConnectionSource"
+    :all-blocks="allBlocks"
+    :all-connections="allConnections"
+    @drag-start="$emit('drag-start', block.id)"
+    @drag-move="$emit('drag-move', $event)"
+    @drag-end="$emit('drag-end')"
+    @delete="$emit('delete', block.id)"
+    @start-connection="$emit('start-connection', block.id)"
+    @update-block="$emit('update-block', $event)"
+  />
+</template>
+
     <template v-else>
       <span>{{ block.name }}</span>
     </template>
@@ -104,6 +135,8 @@
 </template>
 
 <script setup>
+import PrintBlock from './PrintBlock.vue'
+import IfBlock from './IfBlock.vue'
 import MathBlock from './MathBlock.vue'
 import { ref, computed, nextTick } from 'vue'
 import DeleteButton from '../UI/DeleteButton.vue'
@@ -133,6 +166,8 @@ const onMathExecute = (data) => {
   console.log('WorkspaceBlock onMathExecute:', data)
   emit('math-execute', data)
 }
+
+console.log('WorkspaceBlock props:', props.block)
 
 const { getVariableByName, upsertVariable } = useVariables()
 const isDragging = ref(false)

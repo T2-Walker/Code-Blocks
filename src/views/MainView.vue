@@ -19,12 +19,12 @@ const goToTest = () => {
   console.log('Кнопка нажата')
   router.push('/test')
 }
-// Переброс
+
 </script>
 
 <style scoped>
 .main {
-  width: 92%; /* размеры самой страницы (блока) */
+  width: 92%;
   height: 450px;
   background-color: #496db8;
   margin: 50px auto;
