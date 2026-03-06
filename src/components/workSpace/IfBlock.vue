@@ -1,11 +1,5 @@
 <template>
-  <div 
-    class="workspace-block if-block"
-    :class="{ dragging: isDragging, 'connection-source': isConnectionSource }"
-    :style="{ left: block.x + 'px', top: block.y + 'px', backgroundColor: block.color }"
-    @pointerdown="startDrag"
-  >
-    <div class="if-content">
+  <div class="if-content">
       <div class="if-row if-condition-row">
         <span class="if-keyword">if</span>
         
@@ -38,10 +32,10 @@
         <select v-model="comparator" class="if-comparator-select" @change="emitUpdate">
           <option value="==">==</option>
           <option value="!=">!=</option>
-          <option value=">">></option>
-          <option value="<"><</option>
-          <option value=">=">>=</option>
-          <option value="<="><=</option>
+          <option value=">">&gt;</option>
+          <option value="<">&lt;</option>
+          <option value=">=">&gt;=</option>
+          <option value="<=">&lt;=</option>
         </select>
 
         <select v-model="rightType" class="if-type-select" @change="onRightTypeChange">
@@ -79,41 +73,23 @@
           {{ conditionResult ? 'true' : 'false' }}
         </span>
       </div>
-    </div>
-
-    <button 
-      class="connect-btn"
-      @click.stop="startConnection"
-      @pointerdown.stop
-    >
-      🔗
-    </button>
-
-    <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import DeleteButton from '../UI/DeleteButton.vue'
 import { useVariables } from '@/composables/useVariables'
 import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext'
 
 const props = defineProps({
   block: Object,
-  bounds: Object,
-  isConnectionSource: Boolean,
   allBlocks: Array,
   allConnections: Array,
 })
 
-const emit = defineEmits([
-  'drag-start', 'drag-move', 'drag-end', 'delete',
-  'start-connection', 'update-block', 'condition-check'
-])
+const emit = defineEmits(['update-block', 'condition-check'])
 
 const { variables, getVariableByName } = useVariables()
-const isDragging = ref(false)
 
 const leftType = ref(props.block.leftType || 'variable')
 const leftVariable = ref(props.block.leftVariable || '')
@@ -235,70 +211,17 @@ const onRightTypeChange = () => {
   emitUpdate()
 }
 
-const startDrag = (event) => {
-  if (event.target.closest('.delete-btn')) return
-  if (event.target.closest('.connect-btn')) return
-  if (event.target.closest('select')) return
-  if (event.target.closest('input')) return
-
-  event.preventDefault()
-  isDragging.value = true
-
-  const startX = event.clientX
-  const startY = event.clientY
-  const startBlockX = props.block.x
-  const startBlockY = props.block.y
-
-  emit('drag-start', props.block.id)
-
-  const onPointerMove = (e) => {
-    const dx = e.clientX - startX
-    const dy = e.clientY - startY
-
-    let newX = startBlockX + dx
-    let newY = startBlockY + dy
-
-    if (props.bounds) {
-      newX = Math.max(props.bounds.minX, Math.min(newX, props.bounds.maxX))
-      newY = Math.max(props.bounds.minY, Math.min(newY, props.bounds.maxY))
-    }
-
-    emit('drag-move', { id: props.block.id, x: newX, y: newY })
-  }
-
-  const onPointerUp = () => {
-    isDragging.value = false
-    document.removeEventListener('pointermove', onPointerMove)
-    document.removeEventListener('pointerup', onPointerUp)
-    document.removeEventListener('pointercancel', onPointerUp)
-  }
-
-  document.addEventListener('pointermove', onPointerMove)
-  document.addEventListener('pointerup', onPointerUp)
-  document.addEventListener('pointercancel', onPointerUp)
-}
-
-const startConnection = (event) => {
-  event.stopPropagation()
-  emit('start-connection', props.block.id)
-}
+// drag и кнопка соединения обрабатываются во внешнем WorkspaceBlock
 </script>
 
 <style scoped>
-.if-block {
+.if-content {
   min-width: 350px;
   padding: 15px;
   background-color: #FFC107;
-  position: absolute;
   border-radius: 5px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
-}
-
-.if-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .if-row {
