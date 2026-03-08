@@ -118,7 +118,6 @@ const allowedNames = computed(() => {
 const allowedNameSet = computed(() => new Set(allowedNames.value))
 
 const allowedVariables = computed(() => {
-  // сохраняем порядок из цепочки; берём только реально существующие переменные
   const byName = new Map((variables.value || []).map((v) => [v.name, v]))
   return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
 })
@@ -230,7 +229,6 @@ const onRightTypeChange = () => {
   emitUpdate()
 }
 
-// drag и кнопка соединения обрабатываются во внешнем WorkspaceBlock
 
 </script>
 

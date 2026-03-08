@@ -1,4 +1,6 @@
 export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetBlockId) {
+  console.log(' ChainContext for block:', targetBlockId)
+  
   const byId = new Map(blocks.map((b) => [b.id, b]))
 
   const prevMap = new Map()
@@ -11,13 +13,17 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
     if (!prevMap.has(conn.to)) prevMap.set(conn.to, conn.from)
   }
 
+  console.log(' prevMap:', Object.fromEntries(prevMap))
+  console.log(' nextMap:', Object.fromEntries(nextMap))
 
   let currentId = targetBlockId
   const visited = new Set()
   let startId = null
+  const pathToStart = []
 
   while (currentId != null && !visited.has(currentId)) {
     visited.add(currentId)
+    pathToStart.unshift(currentId)
     const block = byId.get(currentId)
     if (!block) break
     if (block.type === 'start') {
@@ -27,42 +33,51 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
     currentId = prevMap.get(currentId)
   }
 
-  if (!startId) return []
+  if (!startId) {
+    console.log(' No start block found')
+    return []
+  }
+
+  console.log(' Path to start:', pathToStart)
 
   const names = []
   const seen = new Set()
-  let walkId = startId
-  const forwardVisited = new Set()
+  
+  for (const id of pathToStart) {
+    const b = byId.get(id)
+    if (!b) continue
 
-  while (walkId != null && !forwardVisited.has(walkId)) {
-    forwardVisited.add(walkId)
+    console.log('Processing block:', b.type, b.id)
 
-    if (walkId === targetBlockId) break
-
-    const b = byId.get(walkId)
-    if (!b) break
-
-    if (b.type === 'variable' && b.variableName) {
-      const n = String(b.variableName).trim()
-      if (n && !seen.has(n)) {
-        seen.add(n)
-        names.push(n)
+  
+    if (b.type === 'variable') {
+      if (b.savedVariables && Array.isArray(b.savedVariables)) {
+        b.savedVariables.forEach(v => {
+          if (v.name && !seen.has(v.name)) {
+            seen.add(v.name)
+            names.push(v.name)
+            console.log(' Found variable from savedVariables:', v.name)
+          }
+        })
+      } else if (b.variableName) {
+   
+        if (!seen.has(b.variableName)) {
+          seen.add(b.variableName)
+          names.push(b.variableName)
+          console.log('Found variable (old format):', b.variableName)
+        }
       }
     }
 
     if (b.type === 'math' && b.targetVariable) {
-      const n = String(b.targetVariable).trim()
-      if (n && !seen.has(n)) {
-        seen.add(n)
-        names.push(n)
+      if (!seen.has(b.targetVariable)) {
+        seen.add(b.targetVariable)
+        names.push(b.targetVariable)
+        console.log(' Found math target:', b.targetVariable)
       }
     }
-
-    const next = nextMap.get(walkId) || []
-    if (next.length !== 1) break
-    walkId = next[0]
   }
 
+  console.log(' Final variables for block', targetBlockId, ':', names)
   return names
 }
-

@@ -111,7 +111,6 @@ const allowedVariables = computed(() => {
   const byName = new Map((variables.value || []).map((v) => [v.name, v]))
   return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
 })
-
 watch(allowedNames, (names) => {
   const set = new Set(names)
   let changed = false

@@ -1,21 +1,28 @@
 <template>
-  <div class="workspace" ref="workspaceRef" @click="onWorkspaceClick">
-    <GridBackground />
-    
+  <div 
+    class="workspace" 
+    ref="workspaceRef" 
+    @click="onWorkspaceClick"
+    @mousedown="onWorkspaceMouseDown"
+    @mousemove="onWorkspaceMouseMove"
+    @mouseup="onWorkspaceMouseUp"
+    @mouseleave="onWorkspaceMouseLeave"
+  >
+    <!-- ЛИНИИ ВНЕ КОНТЕЙНЕРА -->
     <svg class="connection-lines">
       <g v-for="conn in connections" :key="conn.id" class="connection-group">
         <line
-          :x1="getLinePosition(conn.from, conn.to).x1"
-          :y1="getLinePosition(conn.from, conn.to).y1"
-          :x2="getLinePosition(conn.from, conn.to).x2"
-          :y2="getLinePosition(conn.from, conn.to).y2"
+          :x1="getLinePosition(conn.from, conn.to).x1 + panOffset.x"
+          :y1="getLinePosition(conn.from, conn.to).y1 + panOffset.y"
+          :x2="getLinePosition(conn.from, conn.to).x2 + panOffset.x"
+          :y2="getLinePosition(conn.from, conn.to).y2 + panOffset.y"
           stroke="#4CAF50"
           stroke-width="3"
           stroke-linecap="round"
         />
         <foreignObject
-          :x="(getLinePosition(conn.from, conn.to).x1 + getLinePosition(conn.from, conn.to).x2) / 2 - 12"
-          :y="(getLinePosition(conn.from, conn.to).y1 + getLinePosition(conn.from, conn.to).y2) / 2 - 12"
+          :x="(getLinePosition(conn.from, conn.to).x1 + getLinePosition(conn.from, conn.to).x2) / 2 - 12 + panOffset.x"
+          :y="(getLinePosition(conn.from, conn.to).y1 + getLinePosition(conn.from, conn.to).y2) / 2 - 12 + panOffset.y"
           width="24"
           height="24"
           class="delete-connection-wrapper"
@@ -31,39 +38,48 @@
       </g>
       
       <line
-        v-if="isConnecting && tempLine"
-        :x1="tempLine.x1"
-        :y1="tempLine.y1"
-        :x2="tempLine.x2"
-        :y2="tempLine.y2"
-        stroke="#ff9800"
-        stroke-width="3"
-        stroke-dasharray="5,5"
-        stroke-linecap="round"
-      />
+  v-if="isConnecting && tempLine"
+  :x1="tempLine.x1 + panOffset.x"
+  :y1="tempLine.y1 + panOffset.y"
+  :x2="tempLine.x2 + panOffset.x"
+  :y2="tempLine.y2 + panOffset.y"
+  stroke="#ff9800"
+  stroke-width="3"
+  stroke-dasharray="5,5"
+  stroke-linecap="round"
+/>
     </svg>
     
-    <WorkspaceBlock
-      v-for="block in blocks"
-      :key="block.id"
-      :block="block"
-      :all-blocks="blocks"
-      :all-connections="connections"
-      :bounds="bounds"
-      :is-connection-source="isConnecting && sourceBlockId === block.id"
-      @drag-start="setDraggingId"
-      @drag-move="updateBlockPosition"
-      @drag-end="clearDraggingId"
-      @delete="deleteBlock"
-      @start-connection="startConnection"
-      @update-block="handleBlockUpdate"
-    />
+    <!-- Контейнер с блоками -->
+    <div 
+      class="workspace-container"
+      :style="{
+        transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+        transition: isPanning ? 'none' : 'transform 0.1s ease'
+      }"
+    >
+      <GridBackground />
+      
+      <WorkspaceBlock
+        v-for="block in blocks"
+        :key="block.id"
+        :block="block"
+        :all-blocks="blocks"
+        :all-connections="connections"
+        :bounds="bounds"
+        :is-connection-source="isConnecting && sourceBlockId === block.id"
+        @drag-start="setDraggingId"
+        @drag-move="updateBlockPosition"
+        @drag-end="clearDraggingId"
+        @delete="deleteBlock"
+        @start-connection="startConnection"
+        @update-block="handleBlockUpdate"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-
-
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import GridBackground from './GridBackground.vue'
 import WorkspaceBlock from './WorkspaceBlock.vue'
@@ -93,16 +109,84 @@ const sourceBlockId = ref(null)
 const tempLine = ref(null)
 const onMouseMoveRef = ref(null)
 
+// ========== ПЕРЕТАСКИВАНИЕ РАБОЧЕЙ ОБЛАСТИ ==========
+const isPanning = ref(false)
+const panStart = ref({ x: 0, y: 0 })
+const panOffset = ref({ x: 0, y: 0 })
+const lastMousePos = ref({ x: 0, y: 0 })
+
+// Границы перетаскивания
+const maxPanX = computed(() => 2000)
+const maxPanY = computed(() => 2000)
+
+const onWorkspaceMouseDown = (e) => {
+  if (
+    e.button !== 0 || 
+    e.ctrlKey || e.altKey || e.shiftKey || 
+    e.target.closest('.workspace-block') ||
+    e.target.closest('.delete-connection-btn') ||
+    isConnecting.value
+  ) {
+    return
+  }
+
+  e.preventDefault()
+  isPanning.value = true
+  panStart.value = {
+    x: e.clientX - panOffset.value.x,
+    y: e.clientY - panOffset.value.y
+  }
+  lastMousePos.value = { x: e.clientX, y: e.clientY }
+  
+  workspaceRef.value.style.cursor = 'grabbing'
+}
+
+const onWorkspaceMouseMove = (e) => {
+  if (!isPanning.value) return
+  
+  e.preventDefault()
+  
+  let newX = e.clientX - panStart.value.x
+  let newY = e.clientY - panStart.value.y
+  
+  newX = Math.max(-maxPanX.value, Math.min(maxPanX.value, newX))
+  newY = Math.max(-maxPanY.value, Math.min(maxPanY.value, newY))
+  
+  panOffset.value = { x: newX, y: newY }
+  lastMousePos.value = { x: e.clientX, y: e.clientY }
+}
+
+const onWorkspaceMouseUp = () => {
+  if (isPanning.value) {
+    isPanning.value = false
+    workspaceRef.value.style.cursor = 'default'
+  }
+}
+
+const onWorkspaceMouseLeave = () => {
+  if (isPanning.value) {
+    isPanning.value = false
+    workspaceRef.value.style.cursor = 'default'
+  }
+}
+
+// Сброс позиции
+const resetPan = () => {
+  panOffset.value = { x: 0, y: 0 }
+}
+
+// Обновляем bounds с учетом смещения
 const bounds = computed(() => {
   if (!workspaceRef.value) return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
   const rect = workspaceRef.value.getBoundingClientRect()
   return {
-    minX: 0,
-    minY: 0,
-    maxX: rect.width - 100,
-    maxY: rect.height - 50,
+    minX: -panOffset.value.x,
+    minY: -panOffset.value.y,
+    maxX: rect.width - 100 - panOffset.value.x,
+    maxY: rect.height - 50 - panOffset.value.y,
   }
 })
+// ========== КОНЕЦ ПЕРЕТАСКИВАНИЯ ==========
 
 const getLinePosition = (fromId, toId) => {
   const fromBlock = props.blocks.find(b => b.id === fromId)
@@ -133,7 +217,9 @@ const updateBlockPosition = ({ id, x, y }) => {
   }
 }
 
+
 const handleBlockUpdate = (blockData) => {
+  console.log('WorkspaceArea handleBlockUpdate:', blockData)
   emit('update-block', blockData)
 }
 
@@ -147,9 +233,14 @@ const startConnection = (blockId) => {
   
   const onMouseMove = (e) => {
     if (!isConnecting.value || !workspaceRef.value) return
+    
     const rect = workspaceRef.value.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
+    let mouseX = e.clientX - rect.left
+    let mouseY = e.clientY - rect.top
+    
+    mouseX = mouseX - panOffset.value.x
+    mouseY = mouseY - panOffset.value.y
+    
     tempLine.value = createTempLine(sourceBlock, mouseX, mouseY)
   }
   
@@ -277,6 +368,15 @@ onUnmounted(() => cancelConnection())
   position: relative;
   background-color: #1e1e1e;
   overflow: hidden;
+  cursor: default;
+}
+
+.workspace-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .connection-lines {
@@ -287,6 +387,7 @@ onUnmounted(() => cancelConnection())
   height: 100%;
   pointer-events: none;
   z-index: 5;
+  overflow: visible;
 }
 
 .connection-group {

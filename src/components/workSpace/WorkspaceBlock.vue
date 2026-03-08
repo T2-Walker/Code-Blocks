@@ -13,115 +13,140 @@
     }"
     @pointerdown="startDrag"
   >
-    <template v-if="block.type === 'variable'">
-      <div class="variable-content" @click.stop="handleVariableClick">
-        <template v-if="!isEditing">
-          <div class="variable-name-block">{{ displayName }}</div>
-          <div class="variable-value-block">{{ displayValue }}</div>
-        </template>
-        
-        <template v-else>
-          <input
-            v-model="editName"
-            type="text"
-            class="variable-edit-input"
-            placeholder="имя"
-            @keydown.enter.stop="saveChanges"
-            ref="nameInput"
-          />
-          <select
-            v-model="editType"
-            class="variable-edit-select"
-            @change="onTypeChange"
-          >
-            <option value="int">int</option>
-            <option value="string">string</option>
-            <option value="boolean">boolean</option>
-          </select>
-          
-          <input
-            v-if="editType === 'int'"
-            v-model.number="editValue"
-            type="number"
-            class="variable-edit-input"
-            placeholder="значение"
-            @keydown.enter.stop="saveChanges"
-          />
-          <input
-            v-else-if="editType === 'string'"
-            v-model="editValue"
-            type="text"
-            class="variable-edit-input"
-            placeholder="значение"
-            @keydown.enter.stop="saveChanges"
-          />
-          <select
-            v-else-if="editType === 'boolean'"
-            v-model="editValue"
-            class="variable-edit-select"
-          >
-            <option :value="true">true</option>
-            <option :value="false">false</option>
-          </select>
-          
-          <div class="variable-edit-actions">
-            <button class="variable-save-btn" @click.stop="saveChanges">✓</button>
-            <button class="variable-cancel-btn" @click.stop="cancelEdit">✗</button>
+<template v-if="block.type === 'variable'">
+  <div class="variable-block-content">
+    <!-- Режим редактирования -->
+    <template v-if="isEditing">
+      <textarea
+        ref="editInput"
+        v-model="editText"
+        class="variable-edit-textarea"
+        :class="{ 'has-content': editText.length > 0 }"
+        placeholder="// int a = 2, b = 5"
+        rows="2"
+        @input="parseEditText"
+        @keydown.enter.prevent="handleEditEnter"
+        @blur="handleEditBlur"
+      ></textarea>
+      
+      <!-- Предпросмотр распознанного -->
+      <div v-if="parsedVariables.length > 0" class="variable-preview">
+        <div class="preview-items">
+          <div v-for="(v, idx) in parsedVariables" :key="idx" class="preview-item">
+            <span class="preview-type">{{ v.type }}</span>
+            <span class="preview-name">{{ v.name }}</span>
+            <span class="preview-equals">=</span>
+            <span class="preview-value">{{ formatValue(v) }}</span>
           </div>
-        </template>
+        </div>
+      </div>
+      
+      <!-- Ошибка парсинга -->
+      <div v-if="parseError" class="variable-parse-error">
+        ❌ {{ parseError }}
+      </div>
+      
+      <!-- Кнопки действий -->
+      <div class="variable-edit-actions">
+        <button 
+          class="variable-save-btn" 
+          @click.stop="saveVariableEdit"
+          :disabled="!isValidEdit"
+        >
+          ✓ Сохранить
+        </button>
+        <button class="variable-cancel-btn" @click.stop="cancelEdit">
+          ✗ Отмена
+        </button>
       </div>
     </template>
-
-<template v-else-if="block.type === 'math'">
-  <MathBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-    @execute="onMathExecute"
-  />
-</template>
-<template v-else-if="block.type === 'if'">
-  <IfBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-  />
-</template>
-<template v-else-if="block.type === 'print'">
-  <PrintBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-  />
+    
+    <!-- Режим просмотра (сохраненные переменные) -->
+    <template v-else>
+      <div class="variable-saved-list">
+        <div 
+          v-for="(v, idx) in savedVariables" 
+          :key="idx"
+          class="variable-saved-item"
+          @click.stop="editVariable"
+        >
+          <span class="saved-type">{{ v.type }}</span>
+          <span class="saved-name">{{ v.name }}</span>
+          <span class="saved-equals">=</span>
+          <span class="saved-value">{{ formatValue(v) }}</span>
+        </div>
+      </div>
+      
+      <!-- Кнопка редактирования (карандаш) -->
+      <button 
+        class="variable-edit-trigger"
+        @click.stop="editVariable"
+        title="Редактировать переменные"
+      >
+        ✎
+      </button>
+    </template>
+  </div>
 </template>
 
+    <!-- Math блок -->
+    <template v-else-if="block.type === 'math'">
+      <MathBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+        @execute="onMathExecute"
+      />
+    </template>
+
+    <!-- If блок -->
+    <template v-else-if="block.type === 'if'">
+      <IfBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
+
+    <!-- Print блок -->
+    <template v-else-if="block.type === 'print'">
+      <PrintBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
+
+    <!-- Обычный блок -->
     <template v-else>
       <span>{{ block.name }}</span>
     </template>
+
+    <!-- Кнопка соединения -->
     <button 
       class="connect-btn"
       @click.stop="startConnection"
@@ -138,7 +163,7 @@
 import PrintBlock from './PrintBlock.vue'
 import IfBlock from './IfBlock.vue'
 import MathBlock from './MathBlock.vue'
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import DeleteButton from '../UI/DeleteButton.vue'
 import { useVariables } from '@/composables/useVariables'
 
@@ -149,8 +174,6 @@ const props = defineProps({
   allBlocks: Array,
   allConnections: Array,
 })
-
-
 
 const emit = defineEmits([
   'drag-start', 
@@ -172,6 +195,268 @@ console.log('WorkspaceBlock props:', props.block)
 const { getVariableByName, upsertVariable } = useVariables()
 const isDragging = ref(false)
 const isEditing = ref(false)
+const editText = ref('')
+const parsedVariables = ref([])
+const savedVariables = ref([])
+const parseError = ref('')
+const isValidEdit = ref(false)
+const editInput = ref(null)
+
+const types = ['int', 'boolean', 'double', 'string']
+
+watch(() => props.block, (block) => {
+  console.log('[WATCH] block changed:', block)
+  if (block.type === 'variable') {
+    if (block.savedVariables) {
+      console.log('[INIT] loading savedVariables:', block.savedVariables)
+      savedVariables.value = block.savedVariables
+    } else if (block.variableName) {
+      console.log('[INIT] converting old format:', {
+        name: block.variableName,
+        type: block.variableType,
+        value: block.variableValue
+      })
+      savedVariables.value = [{
+        name: block.variableName,
+        type: block.variableType || 'int',
+        value: block.variableValue ?? 0
+      }]
+    }
+    console.log(' [INIT] savedVariables after load:', savedVariables.value)
+  }
+}, { immediate: true, deep: true })
+
+const parseEditText = () => {
+  console.log(' [PARSE] editText:', editText.value)
+  
+  parseError.value = ''
+  parsedVariables.value = []
+  isValidEdit.value = false
+  
+  const text = editText.value.trim()
+  if (!text) {
+    console.log('[PARSE] empty text')
+    return
+  }
+  
+  const lines = text.split('\n').filter(l => l.trim())
+  console.log('[PARSE] lines:', lines)
+  
+  const allVariables = []
+  
+  for (const line of lines) {
+    console.log('[PARSE] parsing line:', line)
+    const vars = parseLine(line)
+    if (vars.error) {
+      console.log('[PARSE] error:', vars.error)
+      parseError.value = vars.error
+      return
+    }
+    console.log('[PARSE] parsed vars from line:', vars.variables)
+    allVariables.push(...vars.variables)
+  }
+  
+  console.log('[PARSE] allVariables:', allVariables)
+  parsedVariables.value = allVariables
+  isValidEdit.value = allVariables.length > 0
+}
+
+const parseLine = (line) => {
+  console.log('[LINE] parsing line:', line)
+  const result = { variables: [], error: null }
+  
+  const typeMatch = line.match(/^(int|boolean|double|string)\s+(.+)$/)
+  if (!typeMatch) {
+    console.log('[LINE] error: no type match')
+    return { error: 'Должно начинаться с типа: int, boolean, double, string' }
+  }
+  
+  const type = typeMatch[1]
+  const rest = typeMatch[2].trim()
+  console.log('[LINE] type:', type, 'rest:', rest)
+  
+  const parts = rest.split(',').map(p => p.trim())
+  console.log('[LINE] parts:', parts)
+  
+  let commonValue = null
+  const valueMatch = rest.match(/=\s*(.+)$/)
+  if (valueMatch) {
+    commonValue = parseValue(type, valueMatch[1].trim())
+    console.log(' [LINE] common value found:', commonValue)
+  }
+  
+  for (const part of parts) {
+    console.log(' [LINE] processing part:', part)
+    const varMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=\s*(.+))?$/)
+    if (!varMatch) {
+      console.log(' [LINE] invalid format in part:', part)
+      return { error: `Неверный формат: ${part}` }
+    }
+    
+    const name = varMatch[1]
+    let value = commonValue
+    
+    if (varMatch[2]) {
+      value = parseValue(type, varMatch[2].trim())
+      console.log(' [LINE] individual value for', name, ':', value)
+    } else if (value === null) {
+      value = getDefaultValue(type)
+      console.log(' [LINE] default value for', name, ':', value)
+    }
+    
+    result.variables.push({ type, name, value })
+  }
+  
+  console.log(' [LINE] result:', result)
+  return result
+}
+
+const parseValue = (type, str) => {
+  str = str.trim()
+  console.log(' [VALUE] parsing', type, 'value:', str)
+  switch(type) {
+    case 'int':
+      const intVal = parseInt(str)
+      console.log(' [VALUE] int parsed:', intVal)
+      return isNaN(intVal) ? 0 : intVal
+    case 'double':
+      const doubleVal = parseFloat(str)
+      console.log(' [VALUE] double parsed:', doubleVal)
+      return isNaN(doubleVal) ? 0.0 : doubleVal
+    case 'boolean':
+      const boolVal = str.toLowerCase() === 'true'
+      console.log(' [VALUE] boolean parsed:', boolVal)
+      return boolVal
+    case 'string':
+      const strVal = str.replace(/^["']|["']$/g, '')
+      console.log(' [VALUE] string parsed:', strVal)
+      return strVal
+    default:
+      return str
+  }
+}
+
+const getDefaultValue = (type) => {
+  const defaults = {
+    'int': 0,
+    'double': 0.0,
+    'boolean': false,
+    'string': ''
+  }
+  console.log(' [DEFAULT] default for', type, ':', defaults[type])
+  return defaults[type] || null
+}
+
+const formatValue = (v) => {
+  if (v.type === 'string') return `"${v.value}"`
+  if (v.type === 'boolean') return v.value ? 'true' : 'false'
+  return v.value
+}
+
+const editVariable = () => {
+  console.log(' [EDIT] starting edit, savedVariables:', savedVariables.value)
+  isEditing.value = true
+  
+  if (savedVariables.value.length > 0) {
+    const lines = []
+    const byType = {}
+    
+    savedVariables.value.forEach(v => {
+      if (!byType[v.type]) byType[v.type] = []
+      byType[v.type].push(v)
+    })
+    console.log(' [EDIT] grouped by type:', byType)
+    
+    Object.entries(byType).forEach(([type, vars]) => {
+      const parts = vars.map(v => {
+        if (v.value === getDefaultValue(type)) {
+          return v.name
+        } else {
+          return `${v.name} = ${v.type === 'string' ? `"${v.value}"` : v.value}`
+        }
+      })
+      lines.push(`${type} ${parts.join(', ')}`)
+    })
+    
+    editText.value = lines.join('\n')
+    console.log('[EDIT] editText set to:', editText.value)
+  } else {
+    editText.value = 'int a = 0'
+    console.log('[EDIT] no saved vars, default editText:', editText.value)
+  }
+  
+  nextTick(() => {
+    editInput.value?.focus()
+    editInput.value?.select()
+  })
+}
+
+const saveVariableEdit = () => {
+  console.log(' [SAVE] attempting to save, parsedVariables:', parsedVariables.value)
+  
+  if (!isValidEdit.value) {
+    console.log(' [SAVE] invalid, not saving')
+    return
+  }
+  
+  savedVariables.value = [...parsedVariables.value]
+  console.log(' [SAVE] updated savedVariables:', savedVariables.value)
+  
+  savedVariables.value.forEach(v => {
+    console.log(' [SAVE] upserting variable:', v.name, v.value)
+    upsertVariable({
+      oldName: v.name,
+      name: v.name,
+      type: v.type,
+      value: v.value
+    })
+  })
+  
+  const updateData = {
+    id: props.block.id,
+    savedVariables: savedVariables.value,
+    variableName: savedVariables.value[0]?.name,
+    variableType: savedVariables.value[0]?.type,
+    variableValue: savedVariables.value[0]?.value,
+    x: props.block.x,
+    y: props.block.y
+  }
+  
+
+emit('update-block', {
+  id: props.block.id,
+  savedVariables: savedVariables.value,
+  variableName: savedVariables.value[0]?.name,
+  variableType: savedVariables.value[0]?.type,
+  variableValue: savedVariables.value[0]?.value,
+  x: props.block.x,
+  y: props.block.y
+})
+  
+  isEditing.value = false
+  editText.value = ''
+  parsedVariables.value = []
+}
+
+const startNewVariable = () => {
+  console.log('➕ [NEW] starting new variable')
+  isEditing.value = true
+  editText.value = ''
+  nextTick(() => {
+    editInput.value?.focus()
+  })
+}
+
+const handleEditEnter = (e) => {
+  console.log(' [ENTER] pressed, ctrlKey:', e.ctrlKey)
+  if (e.ctrlKey || e.metaKey) {
+    console.log(' [ENTER] Ctrl+Enter detected, saving')
+    saveVariableEdit()
+  }
+}
+
+const handleEditBlur = () => {
+}
 
 const editName = ref('')
 const editType = ref('int')
@@ -271,6 +556,7 @@ const startDrag = (event) => {
   if (event.target.closest('input')) return
   if (event.target.closest('select')) return
   if (event.target.closest('button')) return
+  if (event.target.closest('textarea')) return
   if (isEditing.value) return
 
   event.preventDefault()
@@ -352,81 +638,223 @@ const startConnection = (event) => {
   box-shadow: 0 0 0 2px #ff9800;
 }
 
-.variable-content {
+/* Стили для блока переменной */
+.variable-block-content {
+  padding: 8px;
+  min-width: 250px;
+}
+
+.variable-edit-textarea {
+  width: 100%;
+  padding: 10px;
+  background: #1e1e1e;
+  color: #fff;
+  border: 2px solid #4d4d4d;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+.variable-edit-textarea:focus {
+  outline: none;
+  border-color: #9C27B0;
+}
+
+.variable-edit-textarea::placeholder {
+  color: #666;
+  font-style: italic;
+}
+
+.variable-preview {
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #1e1e1e;
+  border-radius: 6px;
+  border-left: 3px solid #9C27B0;
+}
+
+.preview-items {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px;
+  gap: 6px;
 }
 
-.variable-name-block {
-  font-size: 14px;
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #2d2d2d;
+  border-radius: 4px;
+}
+
+.preview-type {
+  color: #FFA726;
   font-weight: bold;
-  padding: 4px 8px;
-  background-color: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  text-align: left;
 }
 
-.variable-value-block {
-  font-size: 13px;
-  padding: 4px 8px;
-  background-color: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-  font-family: monospace;
-  text-align: left;
+.preview-name {
+  color: #66BB6A;
 }
 
-.variable-edit-input,
-.variable-edit-select {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #4CAF50;
-  border-radius: 4px;
-  font-size: 13px;
-  background: white;
-  color: #333;
-  margin-bottom: 4px;
+.preview-equals {
+  color: #888;
 }
 
-.variable-edit-select {
-  cursor: pointer;
+.preview-value {
+  color: #42A5F5;
+}
+
+.variable-parse-error {
+  margin-bottom: 12px;
+  padding: 8px;
+  background: #ff4444;
+  color: white;
+  border-radius: 4px;
+  font-size: 12px;
 }
 
 .variable-edit-actions {
   display: flex;
   gap: 8px;
-  margin-top: 8px;
-  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
-.variable-save-btn,
-.variable-cancel-btn {
-  padding: 6px 12px;
+.variable-save-btn, .variable-cancel-btn {
+  flex: 1;
+  padding: 8px;
   border: none;
   border-radius: 4px;
   font-size: 13px;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
 }
 
 .variable-save-btn {
-  background-color: #4CAF50;
+  background: #9C27B0;
   color: white;
 }
 
-.variable-save-btn:hover {
-  background-color: #45a049;
+.variable-save-btn:hover:not(:disabled) {
+  background: #7B1FA2;
+  transform: translateY(-2px);
+}
+
+.variable-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .variable-cancel-btn {
-  background-color: #ff4444;
+  background: #666;
   color: white;
 }
 
 .variable-cancel-btn:hover {
-  background-color: #cc0000;
+  background: #777;
+  transform: translateY(-2px);
+}
+
+.variable-add-more-btn {
+  width: 100%;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.variable-add-more-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: #9C27B0;
+}
+
+.plus-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.variable-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.variable-saved-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.variable-saved-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.saved-type {
+  color: #FFA726;
+  font-weight: bold;
+}
+
+.saved-name {
+  color: #66BB6A;
+}
+
+.saved-equals {
+  color: #888;
+}
+
+.saved-value {
+  color: #42A5F5;
+}
+
+.variable-edit-trigger {
+  position: absolute;
+  top: -8px;
+  right: 30px;
+  width: 24px;
+  height: 24px;
+  background: #9C27B0;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+
+.workspace-block:hover .variable-edit-trigger {
+  opacity: 1;
+}
+
+.variable-edit-trigger:hover {
+  transform: scale(1.1);
+  background: #7B1FA2;
 }
 
 .connect-btn {
