@@ -1,10 +1,10 @@
 <template>
-  <div 
+  <div
     class="workspace-block"
-    :class="{ 
-      dragging: isDragging, 
+    :class="{
+      dragging: isDragging,
       'variable-block': block.type === 'variable',
-      'connection-source': isConnectionSource 
+      'connection-source': isConnectionSource,
     }"
     :style="{
       left: block.x + 'px',
@@ -19,7 +19,7 @@
           <div class="variable-name-block">{{ displayName }}</div>
           <div class="variable-value-block">{{ displayValue }}</div>
         </template>
-        
+
         <template v-else>
           <input
             v-model="editName"
@@ -29,16 +29,12 @@
             @keydown.enter.stop="saveChanges"
             ref="nameInput"
           />
-          <select
-            v-model="editType"
-            class="variable-edit-select"
-            @change="onTypeChange"
-          >
+          <select v-model="editType" class="variable-edit-select" @change="onTypeChange">
             <option value="int">int</option>
             <option value="string">string</option>
             <option value="boolean">boolean</option>
           </select>
-          
+
           <input
             v-if="editType === 'int'"
             v-model.number="editValue"
@@ -63,7 +59,7 @@
             <option :value="true">true</option>
             <option :value="false">false</option>
           </select>
-          
+
           <div class="variable-edit-actions">
             <button class="variable-save-btn" @click.stop="saveChanges">✓</button>
             <button class="variable-cancel-btn" @click.stop="cancelEdit">✗</button>
@@ -72,63 +68,57 @@
       </div>
     </template>
 
-<template v-else-if="block.type === 'math'">
-  <MathBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-    @execute="onMathExecute"
-  />
-</template>
-<template v-else-if="block.type === 'if'">
-  <IfBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-  />
-</template>
-<template v-else-if="block.type === 'print'">
-  <PrintBlock
-    :block="block"
-    :bounds="bounds"
-    :is-connection-source="isConnectionSource"
-    :all-blocks="allBlocks"
-    :all-connections="allConnections"
-    @drag-start="$emit('drag-start', block.id)"
-    @drag-move="$emit('drag-move', $event)"
-    @drag-end="$emit('drag-end')"
-    @delete="$emit('delete', block.id)"
-    @start-connection="$emit('start-connection', block.id)"
-    @update-block="$emit('update-block', $event)"
-  />
-</template>
+    <template v-else-if="block.type === 'math'">
+      <MathBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+        @execute="onMathExecute"
+      />
+    </template>
+    <template v-else-if="block.type === 'if'">
+      <IfBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="(data) => $emit('start-connection', data)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
+    <template v-else-if="block.type === 'print'">
+      <PrintBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
 
     <template v-else>
       <span>{{ block.name }}</span>
     </template>
-    <button 
-      class="connect-btn"
-      @click.stop="startConnection"
-      @pointerdown.stop
-    >
-      🔗
-    </button>
+    <button class="connect-btn" @click.stop="startConnection" @pointerdown.stop>🔗</button>
 
     <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
@@ -150,16 +140,14 @@ const props = defineProps({
   allConnections: Array,
 })
 
-
-
 const emit = defineEmits([
-  'drag-start', 
-  'drag-move', 
-  'drag-end', 
+  'drag-start',
+  'drag-move',
+  'drag-end',
   'delete',
   'start-connection',
   'update-block',
-  'math-execute'
+  'math-execute',
 ])
 
 const onMathExecute = (data) => {
@@ -204,9 +192,9 @@ const displayValue = computed(() => {
 
 const handleVariableClick = async () => {
   if (isEditing.value) return
-  
+
   isEditing.value = true
-  
+
   if (currentVariable.value) {
     editName.value = currentVariable.value.name
     editType.value = currentVariable.value.type
@@ -214,10 +202,11 @@ const handleVariableClick = async () => {
   } else {
     editName.value = props.block.variableName || ''
     editType.value = props.block.variableType || 'int'
-    editValue.value = props.block.variableValue ?? 
+    editValue.value =
+      props.block.variableValue ??
       (editType.value === 'int' ? 1 : editType.value === 'boolean' ? true : '')
   }
-  
+
   await nextTick()
   nameInput.value?.focus()
   nameInput.value?.select()
@@ -234,27 +223,27 @@ const saveChanges = () => {
     alert('Имя переменной не может быть пустым')
     return
   }
-  
+
   const newName = editName.value.trim()
   const oldName = props.block.variableName
-  
+
   try {
     upsertVariable({
       oldName,
       name: newName,
       type: editType.value,
-      value: editValue.value
+      value: editValue.value,
     })
-    
+
     emit('update-block', {
       id: props.block.id,
       variableName: newName,
       variableType: editType.value,
       variableValue: editValue.value,
       x: props.block.x,
-      y: props.block.y
+      y: props.block.y,
     })
-    
+
     isEditing.value = false
   } catch (e) {
     alert(e.message)
@@ -327,7 +316,9 @@ const startConnection = (event) => {
   text-align: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   user-select: none;
-  transition: box-shadow 0.2s, transform 0.1s;
+  transition:
+    box-shadow 0.2s,
+    transform 0.1s;
   will-change: left, top;
   border: 2px solid transparent;
   color: white;
@@ -381,7 +372,7 @@ const startConnection = (event) => {
 .variable-edit-select {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid #4CAF50;
+  border: 1px solid #4caf50;
   border-radius: 4px;
   font-size: 13px;
   background: white;
@@ -412,7 +403,7 @@ const startConnection = (event) => {
 }
 
 .variable-save-btn {
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
 }
 
@@ -435,14 +426,16 @@ const startConnection = (event) => {
   left: -8px;
   width: 24px;
   height: 24px;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 50%;
   font-size: 14px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
   z-index: 20;
   display: flex;
   align-items: center;

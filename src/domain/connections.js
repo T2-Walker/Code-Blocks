@@ -103,7 +103,7 @@ function checkCycle(sourceId, targetId, conns) {
   return false
 }
 
-export function createConnection(fromBlockId, toBlockId) {
+export function createConnection(fromBlockId, toBlockId, type = 'normal') {
   const exists = connections.some(
     (conn) =>
       (conn.from === fromBlockId && conn.to === toBlockId) ||

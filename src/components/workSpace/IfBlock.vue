@@ -1,79 +1,88 @@
 <template>
   <div class="if-content">
-      <div class="if-row if-condition-row">
-        <span class="if-keyword">if</span>
-        
-        <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-        
-        <select 
-          v-if="leftType === 'variable'" 
-          v-model="leftVariable" 
-          class="if-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
-            {{ varItem.name }}
-          </option>
-        </select>
-        
-        <input
-          v-else
-          v-model.number="leftNumber"
-          type="number"
-          class="if-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
+    <div class="if-row if-condition-row">
+      <span class="if-keyword">if</span>
 
-        <select v-model="comparator" class="if-comparator-select" @change="emitUpdate">
-          <option value="==">==</option>
-          <option value="!=">!=</option>
-          <option value=">">&gt;</option>
-          <option value="<">&lt;</option>
-          <option value=">=">&gt;=</option>
-          <option value="<=">&lt;=</option>
-        </select>
+      <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
+        <option value="variable">Переменная</option>
+        <option value="number">Число</option>
+      </select>
 
-        <select v-model="rightType" class="if-type-select" @change="onRightTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-        
-        <select 
-          v-if="rightType === 'variable'" 
-          v-model="rightVariable" 
-          class="if-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
-            {{ varItem.name }}
-          </option>
-        </select>
-        
-        <input
-          v-else
-          v-model.number="rightNumber"
-          type="number"
-          class="if-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
-      </div>
+      <select
+        v-if="leftType === 'variable'"
+        v-model="leftVariable"
+        class="if-variable-select"
+        @change="emitUpdate"
+      >
+        <option value="">Выберите переменную</option>
+        <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
+          {{ varItem.name }}
+        </option>
+      </select>
 
-      <div class="if-row if-result-row">
-        <span class="if-condition-display">
-          {{ conditionExpression }}
-        </span>
-        <span class="if-result" :class="{ 'true': conditionResult, 'false': !conditionResult }">
-          {{ conditionResult ? 'true' : 'false' }}
-        </span>
-      </div>
+      <input
+        v-else
+        v-model.number="leftNumber"
+        type="number"
+        class="if-number-input"
+        placeholder="число"
+        @input="emitUpdate"
+      />
+
+      <select v-model="comparator" class="if-comparator-select" @change="emitUpdate">
+        <option value="==">==</option>
+        <option value="!=">!=</option>
+        <option value=">">&gt;</option>
+        <option value="<">&lt;</option>
+        <option value=">=">&gt;=</option>
+        <option value="<=">&lt;=</option>
+      </select>
+
+      <select v-model="rightType" class="if-type-select" @change="onRightTypeChange">
+        <option value="variable">Переменная</option>
+        <option value="number">Число</option>
+      </select>
+
+      <select
+        v-if="rightType === 'variable'"
+        v-model="rightVariable"
+        class="if-variable-select"
+        @change="emitUpdate"
+      >
+        <option value="">Выберите переменную</option>
+        <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
+          {{ varItem.name }}
+        </option>
+      </select>
+
+      <input
+        v-else
+        v-model.number="rightNumber"
+        type="number"
+        class="if-number-input"
+        placeholder="число"
+        @input="emitUpdate"
+      />
+    </div>
+
+    <div class="if-row if-result-row">
+      <span class="if-condition-display">
+        {{ conditionExpression }}
+      </span>
+      <span class="if-result" :class="{ true: conditionResult, false: !conditionResult }">
+        {{ conditionResult ? 'true' : 'false' }}
+      </span>
+    </div>
   </div>
+
+  <button
+    class="connect-then-btn"
+    @click.stop="startThenConnection"
+    @pointerdown.stop
+    title="Создать then-ветку (выполняется при истинном условии)"
+  >
+    🔗
+  </button>
 </template>
 
 <script setup>
@@ -112,24 +121,28 @@ const allowedVariables = computed(() => {
   return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
 })
 
-watch(allowedNames, (names) => {
-  const set = new Set(names)
-  let changed = false
+watch(
+  allowedNames,
+  (names) => {
+    const set = new Set(names)
+    let changed = false
 
-  if (leftType.value === 'variable' && leftVariable.value && !set.has(leftVariable.value)) {
-    leftVariable.value = ''
-    changed = true
-  }
+    if (leftType.value === 'variable' && leftVariable.value && !set.has(leftVariable.value)) {
+      leftVariable.value = ''
+      changed = true
+    }
 
-  if (rightType.value === 'variable' && rightVariable.value && !set.has(rightVariable.value)) {
-    rightVariable.value = ''
-    changed = true
-  }
+    if (rightType.value === 'variable' && rightVariable.value && !set.has(rightVariable.value)) {
+      rightVariable.value = ''
+      changed = true
+    }
 
-  if (changed) {
-    emitUpdate()
-  }
-}, { immediate: true })
+    if (changed) {
+      emitUpdate()
+    }
+  },
+  { immediate: true },
+)
 
 const getLeftValue = () => {
   if (leftType.value === 'variable') {
@@ -150,15 +163,22 @@ const getRightValue = () => {
 const conditionResult = computed(() => {
   const leftVal = getLeftValue()
   const rightVal = getRightValue()
-  
+
   switch (comparator.value) {
-    case '==': return leftVal == rightVal
-    case '!=': return leftVal != rightVal
-    case '>': return leftVal > rightVal
-    case '<': return leftVal < rightVal
-    case '>=': return leftVal >= rightVal
-    case '<=': return leftVal <= rightVal
-    default: return false
+    case '==':
+      return leftVal == rightVal
+    case '!=':
+      return leftVal != rightVal
+    case '>':
+      return leftVal > rightVal
+    case '<':
+      return leftVal < rightVal
+    case '>=':
+      return leftVal >= rightVal
+    case '<=':
+      return leftVal <= rightVal
+    default:
+      return false
   }
 })
 
@@ -172,7 +192,7 @@ watch(conditionResult, (newResult) => {
   emit('condition-check', {
     id: props.block.id,
     result: newResult,
-    expression: conditionExpression.value
+    expression: conditionExpression.value,
   })
 })
 
@@ -187,9 +207,9 @@ const emitUpdate = () => {
     rightVariable: rightVariable.value,
     rightNumber: rightNumber.value,
   }
-  
+
   console.log('📤 IfBlock emitUpdate:', updateData)
-  
+
   emit('update-block', updateData)
 }
 
@@ -218,7 +238,7 @@ const onRightTypeChange = () => {
 .if-content {
   min-width: 350px;
   padding: 15px;
-  background-color: #FFC107;
+  background-color: #ffc107;
   border-radius: 5px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
@@ -291,7 +311,7 @@ const onRightTypeChange = () => {
 }
 
 .if-comparator-select option {
-  background: #FFC107;
+  background: #ffc107;
   color: #333;
 }
 
@@ -319,7 +339,7 @@ const onRightTypeChange = () => {
 }
 
 .if-result.true {
-  background: #4CAF50;
+  background: #4caf50;
   color: white;
 }
 
@@ -334,14 +354,16 @@ const onRightTypeChange = () => {
   left: -8px;
   width: 24px;
   height: 24px;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 50%;
   font-size: 14px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -357,15 +379,49 @@ const onRightTypeChange = () => {
   transform: scale(1.1);
 }
 
-select, input {
+select,
+input {
   outline: none;
 }
 
-select:hover, input:hover {
+select:hover,
+input:hover {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-select:focus, input:focus {
-  border-color: #4CAF50;
+select:focus,
+input:focus {
+  border-color: #4caf50;
+}
+
+.connect-then-btn {
+  position: absolute;
+  top: 20px;
+  left: -7px;
+  width: 24px;
+  height: 24px;
+  background-color: #ff6347;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.connect-then-btn:hover {
+  background-color: #ff5047;
+  transform: scale(1.1);
+}
+
+.workspace-block:hover .connect-then-btn {
+  opacity: 1;
 }
 </style>
