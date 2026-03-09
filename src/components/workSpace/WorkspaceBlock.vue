@@ -1,10 +1,10 @@
 <template>
-  <div 
+  <div
     class="workspace-block"
-    :class="{ 
-      dragging: isDragging, 
+    :class="{
+      dragging: isDragging,
       'variable-block': block.type === 'variable',
-      'connection-source': isConnectionSource 
+      'connection-source': isConnectionSource,
     }"
     :style="{
       left: block.x + 'px',
@@ -13,81 +13,77 @@
     }"
     @pointerdown="startDrag"
   >
-<template v-if="block.type === 'variable'">
-  <div class="variable-block-content">
-    <!-- Режим редактирования -->
-    <template v-if="isEditing">
-      <textarea
-        ref="editInput"
-        v-model="editText"
-        class="variable-edit-textarea"
-        :class="{ 'has-content': editText.length > 0 }"
-        placeholder="// int a = 2, b = 5"
-        rows="2"
-        @input="parseEditText"
-        @keydown.enter.prevent="handleEditEnter"
-        @blur="handleEditBlur"
-      ></textarea>
-      
-      <!-- Предпросмотр распознанного -->
-      <div v-if="parsedVariables.length > 0" class="variable-preview">
-        <div class="preview-items">
-          <div v-for="(v, idx) in parsedVariables" :key="idx" class="preview-item">
-            <span class="preview-type">{{ v.type }}</span>
-            <span class="preview-name">{{ v.name }}</span>
-            <span class="preview-equals">=</span>
-            <span class="preview-value">{{ formatValue(v) }}</span>
+    <template v-if="block.type === 'variable'">
+      <div class="variable-block-content">
+        <!-- Режим редактирования -->
+        <template v-if="isEditing">
+          <textarea
+            ref="editInput"
+            v-model="editText"
+            class="variable-edit-textarea"
+            :class="{ 'has-content': editText.length > 0 }"
+            placeholder="// int a = 2, b = 5"
+            rows="2"
+            @input="parseEditText"
+            @keydown.enter.prevent="handleEditEnter"
+            @blur="handleEditBlur"
+          ></textarea>
+
+          <!-- Предпросмотр распознанного -->
+          <div v-if="parsedVariables.length > 0" class="variable-preview">
+            <div class="preview-items">
+              <div v-for="(v, idx) in parsedVariables" :key="idx" class="preview-item">
+                <span class="preview-type">{{ v.type }}</span>
+                <span class="preview-name">{{ v.name }}</span>
+                <span class="preview-equals">=</span>
+                <span class="preview-value">{{ formatValue(v) }}</span>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      
-      <!-- Ошибка парсинга -->
-      <div v-if="parseError" class="variable-parse-error">
-        ❌ {{ parseError }}
-      </div>
-      
-      <!-- Кнопки действий -->
-      <div class="variable-edit-actions">
-        <button 
-          class="variable-save-btn" 
-          @click.stop="saveVariableEdit"
-          :disabled="!isValidEdit"
-        >
-          ✓ Сохранить
-        </button>
-        <button class="variable-cancel-btn" @click.stop="cancelEdit">
-          ✗ Отмена
-        </button>
+
+          <!-- Ошибка парсинга -->
+          <div v-if="parseError" class="variable-parse-error">❌ {{ parseError }}</div>
+
+          <!-- Кнопки действий -->
+          <div class="variable-edit-actions">
+            <button
+              class="variable-save-btn"
+              @click.stop="saveVariableEdit"
+              :disabled="!isValidEdit"
+            >
+              ✓ Сохранить
+            </button>
+            <button class="variable-cancel-btn" @click.stop="cancelEdit">✗ Отмена</button>
+          </div>
+        </template>
+
+        <!-- Режим просмотра (сохраненные переменные) -->
+        <template v-else>
+          <div class="variable-saved-list">
+            <div
+              v-for="(v, idx) in savedVariables"
+              :key="idx"
+              class="variable-saved-item"
+              @click.stop="editVariable"
+            >
+              <span class="saved-type">{{ v.type }}</span>
+              <span class="saved-name">{{ v.name }}</span>
+              <span class="saved-equals">=</span>
+              <span class="saved-value">{{ formatValue(v) }}</span>
+            </div>
+          </div>
+
+          <!-- Кнопка редактирования (карандаш) -->
+          <button
+            class="variable-edit-trigger"
+            @click.stop="editVariable"
+            title="Редактировать переменные"
+          >
+            ✎
+          </button>
+        </template>
       </div>
     </template>
-    
-    <!-- Режим просмотра (сохраненные переменные) -->
-    <template v-else>
-      <div class="variable-saved-list">
-        <div 
-          v-for="(v, idx) in savedVariables" 
-          :key="idx"
-          class="variable-saved-item"
-          @click.stop="editVariable"
-        >
-          <span class="saved-type">{{ v.type }}</span>
-          <span class="saved-name">{{ v.name }}</span>
-          <span class="saved-equals">=</span>
-          <span class="saved-value">{{ formatValue(v) }}</span>
-        </div>
-      </div>
-      
-      <!-- Кнопка редактирования (карандаш) -->
-      <button 
-        class="variable-edit-trigger"
-        @click.stop="editVariable"
-        title="Редактировать переменные"
-      >
-        ✎
-      </button>
-    </template>
-  </div>
-</template>
 
     <!-- Math блок -->
     <template v-else-if="block.type === 'math'">
@@ -147,13 +143,7 @@
     </template>
 
     <!-- Кнопка соединения -->
-    <button 
-      class="connect-btn"
-      @click.stop="startConnection"
-      @pointerdown.stop
-    >
-      🔗
-    </button>
+    <button class="connect-btn" @click.stop="startConnection" @pointerdown.stop>🔗</button>
 
     <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
@@ -176,13 +166,13 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
-  'drag-start', 
-  'drag-move', 
-  'drag-end', 
+  'drag-start',
+  'drag-move',
+  'drag-end',
   'delete',
   'start-connection',
   'update-block',
-  'math-execute'
+  'math-execute',
 ])
 
 const onMathExecute = (data) => {
@@ -204,46 +194,52 @@ const editInput = ref(null)
 
 const types = ['int', 'boolean', 'double', 'string']
 
-watch(() => props.block, (block) => {
-  console.log('[WATCH] block changed:', block)
-  if (block.type === 'variable') {
-    if (block.savedVariables) {
-      console.log('[INIT] loading savedVariables:', block.savedVariables)
-      savedVariables.value = block.savedVariables
-    } else if (block.variableName) {
-      console.log('[INIT] converting old format:', {
-        name: block.variableName,
-        type: block.variableType,
-        value: block.variableValue
-      })
-      savedVariables.value = [{
-        name: block.variableName,
-        type: block.variableType || 'int',
-        value: block.variableValue ?? 0
-      }]
+watch(
+  () => props.block,
+  (block) => {
+    console.log('[WATCH] block changed:', block)
+    if (block.type === 'variable') {
+      if (block.savedVariables) {
+        console.log('[INIT] loading savedVariables:', block.savedVariables)
+        savedVariables.value = block.savedVariables
+      } else if (block.variableName) {
+        console.log('[INIT] converting old format:', {
+          name: block.variableName,
+          type: block.variableType,
+          value: block.variableValue,
+        })
+        savedVariables.value = [
+          {
+            name: block.variableName,
+            type: block.variableType || 'int',
+            value: block.variableValue ?? 0,
+          },
+        ]
+      }
+      console.log(' [INIT] savedVariables after load:', savedVariables.value)
     }
-    console.log(' [INIT] savedVariables after load:', savedVariables.value)
-  }
-}, { immediate: true, deep: true })
+  },
+  { immediate: true, deep: true },
+)
 
 const parseEditText = () => {
   console.log(' [PARSE] editText:', editText.value)
-  
+
   parseError.value = ''
   parsedVariables.value = []
   isValidEdit.value = false
-  
+
   const text = editText.value.trim()
   if (!text) {
     console.log('[PARSE] empty text')
     return
   }
-  
-  const lines = text.split('\n').filter(l => l.trim())
+
+  const lines = text.split('\n').filter((l) => l.trim())
   console.log('[PARSE] lines:', lines)
-  
+
   const allVariables = []
-  
+
   for (const line of lines) {
     console.log('[PARSE] parsing line:', line)
     const vars = parseLine(line)
@@ -255,7 +251,7 @@ const parseEditText = () => {
     console.log('[PARSE] parsed vars from line:', vars.variables)
     allVariables.push(...vars.variables)
   }
-  
+
   console.log('[PARSE] allVariables:', allVariables)
   parsedVariables.value = allVariables
   isValidEdit.value = allVariables.length > 0
@@ -264,27 +260,32 @@ const parseEditText = () => {
 const parseLine = (line) => {
   console.log('[LINE] parsing line:', line)
   const result = { variables: [], error: null }
-  
+
   const typeMatch = line.match(/^(int|boolean|double|string)\s+(.+)$/)
   if (!typeMatch) {
     console.log('[LINE] error: no type match')
     return { error: 'Должно начинаться с типа: int, boolean, double, string' }
   }
-  
+
   const type = typeMatch[1]
+
+  if (!types.includes(type)) {
+    return { error: `Неподдерживаемый тип: ${type}` }
+  }
+
   const rest = typeMatch[2].trim()
   console.log('[LINE] type:', type, 'rest:', rest)
-  
-  const parts = rest.split(',').map(p => p.trim())
+
+  const parts = rest.split(',').map((p) => p.trim())
   console.log('[LINE] parts:', parts)
-  
+
   let commonValue = null
   const valueMatch = rest.match(/=\s*(.+)$/)
   if (valueMatch) {
     commonValue = parseValue(type, valueMatch[1].trim())
     console.log(' [LINE] common value found:', commonValue)
   }
-  
+
   for (const part of parts) {
     console.log(' [LINE] processing part:', part)
     const varMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=\s*(.+))?$/)
@@ -292,10 +293,10 @@ const parseLine = (line) => {
       console.log(' [LINE] invalid format in part:', part)
       return { error: `Неверный формат: ${part}` }
     }
-    
+
     const name = varMatch[1]
     let value = commonValue
-    
+
     if (varMatch[2]) {
       value = parseValue(type, varMatch[2].trim())
       console.log(' [LINE] individual value for', name, ':', value)
@@ -303,45 +304,49 @@ const parseLine = (line) => {
       value = getDefaultValue(type)
       console.log(' [LINE] default value for', name, ':', value)
     }
-    
+
     result.variables.push({ type, name, value })
   }
-  
+
   console.log(' [LINE] result:', result)
   return result
 }
 
 const parseValue = (type, str) => {
+  if (!types.includes(type)) {
+    return str
+  }
+
   str = str.trim()
   console.log(' [VALUE] parsing', type, 'value:', str)
-  switch(type) {
+  switch (type) {
     case 'int':
-      const intVal = parseInt(str)
-      console.log(' [VALUE] int parsed:', intVal)
-      return isNaN(intVal) ? 0 : intVal
+      console.log(' [VALUE] int parsed:', str)
+      return isNaN(parseInt(str)) ? 0 : parseInt(str)
     case 'double':
-      const doubleVal = parseFloat(str)
-      console.log(' [VALUE] double parsed:', doubleVal)
-      return isNaN(doubleVal) ? 0.0 : doubleVal
+      console.log(' [VALUE] double parsed:', str)
+      return isNaN(parseFloat(str)) ? 0.0 : parseFloat(str)
     case 'boolean':
-      const boolVal = str.toLowerCase() === 'true'
-      console.log(' [VALUE] boolean parsed:', boolVal)
-      return boolVal
+      console.log(' [VALUE] boolean parsed:', str.toLowerCase() === 'true')
+      return str.toLowerCase() === 'true'
     case 'string':
-      const strVal = str.replace(/^["']|["']$/g, '')
-      console.log(' [VALUE] string parsed:', strVal)
-      return strVal
+      console.log(' [VALUE] string parsed:', str.replace(/^["']|["']$/g, ''))
+      return str.replace(/^["']|["']$/g, '')
     default:
       return str
   }
 }
 
 const getDefaultValue = (type) => {
+  if (!types.includes(type)) {
+    return null
+  }
+
   const defaults = {
-    'int': 0,
-    'double': 0.0,
-    'boolean': false,
-    'string': ''
+    int: 0,
+    double: 0.0,
+    boolean: false,
+    string: '',
   }
   console.log(' [DEFAULT] default for', type, ':', defaults[type])
   return defaults[type] || null
@@ -356,19 +361,19 @@ const formatValue = (v) => {
 const editVariable = () => {
   console.log(' [EDIT] starting edit, savedVariables:', savedVariables.value)
   isEditing.value = true
-  
+
   if (savedVariables.value.length > 0) {
     const lines = []
     const byType = {}
-    
-    savedVariables.value.forEach(v => {
+
+    savedVariables.value.forEach((v) => {
       if (!byType[v.type]) byType[v.type] = []
       byType[v.type].push(v)
     })
     console.log(' [EDIT] grouped by type:', byType)
-    
+
     Object.entries(byType).forEach(([type, vars]) => {
-      const parts = vars.map(v => {
+      const parts = vars.map((v) => {
         if (v.value === getDefaultValue(type)) {
           return v.name
         } else {
@@ -377,14 +382,14 @@ const editVariable = () => {
       })
       lines.push(`${type} ${parts.join(', ')}`)
     })
-    
+
     editText.value = lines.join('\n')
     console.log('[EDIT] editText set to:', editText.value)
   } else {
     editText.value = 'int a = 0'
     console.log('[EDIT] no saved vars, default editText:', editText.value)
   }
-  
+
   nextTick(() => {
     editInput.value?.focus()
     editInput.value?.select()
@@ -393,25 +398,25 @@ const editVariable = () => {
 
 const saveVariableEdit = () => {
   console.log(' [SAVE] attempting to save, parsedVariables:', parsedVariables.value)
-  
+
   if (!isValidEdit.value) {
     console.log(' [SAVE] invalid, not saving')
     return
   }
-  
+
   savedVariables.value = [...parsedVariables.value]
   console.log(' [SAVE] updated savedVariables:', savedVariables.value)
-  
-  savedVariables.value.forEach(v => {
+
+  savedVariables.value.forEach((v) => {
     console.log(' [SAVE] upserting variable:', v.name, v.value)
     upsertVariable({
       oldName: v.name,
       name: v.name,
       type: v.type,
-      value: v.value
+      value: v.value,
     })
   })
-  
+
   const updateData = {
     id: props.block.id,
     savedVariables: savedVariables.value,
@@ -419,20 +424,11 @@ const saveVariableEdit = () => {
     variableType: savedVariables.value[0]?.type,
     variableValue: savedVariables.value[0]?.value,
     x: props.block.x,
-    y: props.block.y
+    y: props.block.y,
   }
-  
 
-emit('update-block', {
-  id: props.block.id,
-  savedVariables: savedVariables.value,
-  variableName: savedVariables.value[0]?.name,
-  variableType: savedVariables.value[0]?.type,
-  variableValue: savedVariables.value[0]?.value,
-  x: props.block.x,
-  y: props.block.y
-})
-  
+  emit('update-block', updateData)
+
   isEditing.value = false
   editText.value = ''
   parsedVariables.value = []
@@ -455,8 +451,7 @@ const handleEditEnter = (e) => {
   }
 }
 
-const handleEditBlur = () => {
-}
+const handleEditBlur = () => {}
 
 const editName = ref('')
 const editType = ref('int')
@@ -489,9 +484,9 @@ const displayValue = computed(() => {
 
 const handleVariableClick = async () => {
   if (isEditing.value) return
-  
+
   isEditing.value = true
-  
+
   if (currentVariable.value) {
     editName.value = currentVariable.value.name
     editType.value = currentVariable.value.type
@@ -499,10 +494,11 @@ const handleVariableClick = async () => {
   } else {
     editName.value = props.block.variableName || ''
     editType.value = props.block.variableType || 'int'
-    editValue.value = props.block.variableValue ?? 
+    editValue.value =
+      props.block.variableValue ??
       (editType.value === 'int' ? 1 : editType.value === 'boolean' ? true : '')
   }
-  
+
   await nextTick()
   nameInput.value?.focus()
   nameInput.value?.select()
@@ -519,27 +515,27 @@ const saveChanges = () => {
     alert('Имя переменной не может быть пустым')
     return
   }
-  
+
   const newName = editName.value.trim()
   const oldName = props.block.variableName
-  
+
   try {
     upsertVariable({
       oldName,
       name: newName,
       type: editType.value,
-      value: editValue.value
+      value: editValue.value,
     })
-    
+
     emit('update-block', {
       id: props.block.id,
       variableName: newName,
       variableType: editType.value,
       variableValue: editValue.value,
       x: props.block.x,
-      y: props.block.y
+      y: props.block.y,
     })
-    
+
     isEditing.value = false
   } catch (e) {
     alert(e.message)
@@ -613,7 +609,9 @@ const startConnection = (event) => {
   text-align: center;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   user-select: none;
-  transition: box-shadow 0.2s, transform 0.1s;
+  transition:
+    box-shadow 0.2s,
+    transform 0.1s;
   will-change: left, top;
   border: 2px solid transparent;
   color: white;
@@ -660,7 +658,7 @@ const startConnection = (event) => {
 
 .variable-edit-textarea:focus {
   outline: none;
-  border-color: #9C27B0;
+  border-color: #9c27b0;
 }
 
 .variable-edit-textarea::placeholder {
@@ -673,7 +671,7 @@ const startConnection = (event) => {
   padding: 10px;
   background: #1e1e1e;
   border-radius: 6px;
-  border-left: 3px solid #9C27B0;
+  border-left: 3px solid #9c27b0;
 }
 
 .preview-items {
@@ -694,12 +692,12 @@ const startConnection = (event) => {
 }
 
 .preview-type {
-  color: #FFA726;
+  color: #ffa726;
   font-weight: bold;
 }
 
 .preview-name {
-  color: #66BB6A;
+  color: #66bb6a;
 }
 
 .preview-equals {
@@ -707,7 +705,7 @@ const startConnection = (event) => {
 }
 
 .preview-value {
-  color: #42A5F5;
+  color: #42a5f5;
 }
 
 .variable-parse-error {
@@ -725,7 +723,8 @@ const startConnection = (event) => {
   margin-bottom: 12px;
 }
 
-.variable-save-btn, .variable-cancel-btn {
+.variable-save-btn,
+.variable-cancel-btn {
   flex: 1;
   padding: 8px;
   border: none;
@@ -737,12 +736,12 @@ const startConnection = (event) => {
 }
 
 .variable-save-btn {
-  background: #9C27B0;
+  background: #9c27b0;
   color: white;
 }
 
 .variable-save-btn:hover:not(:disabled) {
-  background: #7B1FA2;
+  background: #7b1fa2;
   transform: translateY(-2px);
 }
 
@@ -779,7 +778,7 @@ const startConnection = (event) => {
 
 .variable-add-more-btn:hover {
   background: rgba(255, 255, 255, 0.2);
-  border-color: #9C27B0;
+  border-color: #9c27b0;
 }
 
 .plus-icon {
@@ -812,12 +811,12 @@ const startConnection = (event) => {
 }
 
 .saved-type {
-  color: #FFA726;
+  color: #ffa726;
   font-weight: bold;
 }
 
 .saved-name {
-  color: #66BB6A;
+  color: #66bb6a;
 }
 
 .saved-equals {
@@ -825,7 +824,7 @@ const startConnection = (event) => {
 }
 
 .saved-value {
-  color: #42A5F5;
+  color: #42a5f5;
 }
 
 .variable-edit-trigger {
@@ -834,7 +833,7 @@ const startConnection = (event) => {
   right: 30px;
   width: 24px;
   height: 24px;
-  background: #9C27B0;
+  background: #9c27b0;
   color: white;
   border: none;
   border-radius: 50%;
@@ -854,7 +853,7 @@ const startConnection = (event) => {
 
 .variable-edit-trigger:hover {
   transform: scale(1.1);
-  background: #7B1FA2;
+  background: #7b1fa2;
 }
 
 .connect-btn {
@@ -863,14 +862,16 @@ const startConnection = (event) => {
   left: -8px;
   width: 24px;
   height: 24px;
-  background-color: #4CAF50;
+  background-color: #4caf50;
   color: white;
   border: none;
   border-radius: 50%;
   font-size: 14px;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
   z-index: 20;
   display: flex;
   align-items: center;
