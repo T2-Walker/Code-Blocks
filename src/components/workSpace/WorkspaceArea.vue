@@ -399,8 +399,8 @@ onUnmounted(() => cancelConnection())
 
 .workspace-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 2px;    /* тут жесточайший костыль */
+  height: 2px;
   transform-origin: 0 0;
   will-change: transform;
 }
