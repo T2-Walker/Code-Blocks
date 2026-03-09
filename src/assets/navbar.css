@@ -1,9 +1,9 @@
 .navbar {
-  background-color: black !important;
+  background-color: rgba(28, 16, 57, 0.62) !important;
   padding: 16px;
   font-family: 'evolventa', Arial, sans-serif;
   font-size: 1em;
-  color: white; /* цвет обычного текста */
+  color: rgba(255, 255, 255, 0.62); /* цвет обычного текста */
   display: flex;
   flex-direction: row;
   justify-content: space-between;
@@ -21,9 +21,28 @@
   color: yellow; /* цвет ссылок в навбаре */
 }
 .navbar-expand-lg .navbar-nav .nav-link:hover{
-  background-color: white;
-  color: black;
+
+  color: #fdfd00;
   border-radius: 5px;
+}
+.navbar-expand-lg .navbar-nav .nav-link {
+  position: relative; /* Для позиционирования псевдоэлемента */
+}
+
+.navbar-expand-lg .navbar-nav .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 80%;
+  height: 2px;
+  background-color: yellow; /* Цвет подчеркивания */
+  transition: transform 0.3s ease;
+}
+
+.navbar-expand-lg .navbar-nav .nav-link:hover::after {
+  transform: translateX(-50%) scaleX(1);
 }
 .nav-link:active {
   background-color: #9d2d2d;
@@ -66,7 +85,7 @@
 }
 
 .modal-content {
-  background: white;
+  background: #ffffff;
   padding: 20px;
   border-radius: 8px;
   min-width: 400px;
