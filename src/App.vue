@@ -18,7 +18,7 @@ import Footer from '@/components/Footer.vue'
   display: flex;
   flex-direction: column;
   background-color: #264b91;
-  background-image: url('https://s10.iimage.su/s/03/ghDKeIExXVHEBK6ObQc7E408pKgX3BIqGjTEY1fs0.png');
+  background-image: url('https://s10.iimage.su/s/09/gdxI2bQxa5m1zhPzRjTXK9tbFz1HdNPzoF2guowh1.png');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;

@@ -26,9 +26,10 @@ const goToTest = () => {
 .main {
   width: 30%; /* размеры самой страницы (блока) */
   height: 200px;
-  background-color: #2b2b97;
+  background: linear-gradient(135deg, rgba(149, 13, 88, 0.5), rgba(43, 43, 151, 0.5));
 
-  margin: 10px auto;
+
+  margin: 150px auto;
   text-decoration: none;
   color: white;
   border-radius: 1000px;
