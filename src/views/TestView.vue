@@ -71,9 +71,7 @@ const {
   resetExecution 
 } = useExecutionState()
 const updateVariableValue = (name, value) => {
-  console.log('updateVariableValue called with:', name, value)
   const variable = getVariableByName(name)
-  console.log('Found variable:', variable)
   if (variable) {
     upsertVariable({
       oldName: name,
@@ -81,7 +79,6 @@ const updateVariableValue = (name, value) => {
       type: variable.type,
       value
     })
-    console.log('Variable updated to:', value)
   }
 }
 
@@ -92,11 +89,9 @@ const updateVariableValue = (name, value) => {
   }, { deep: true, immediate: true })
 
 const addBlock = (newBlock) => {
-  console.log('ADD BLOCK CALLED WITH:', newBlock)
   
   const exists = blocks.value.some(b => b.id === newBlock.id)
   if (exists) {
-    console.log('Block already exists, skipping')
     return
   }
   
@@ -104,32 +99,29 @@ const addBlock = (newBlock) => {
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
 
-const updateBlockPosition = ({ id, x, y, variableName, variableType, variableValue, targetVariable, leftType, leftVariable, leftNumber, operator, rightType, rightVariable, rightNumber, selectedVariables, comparator }) => {
-  console.log('📥 TestView updateBlockPosition:', { 
-    id, x, y, variableName, variableType, variableValue, 
-    targetVariable, leftVariable, rightVariable, selectedVariables, comparator 
-  })
+const updateBlockPosition = (data) => {
   
-  const block = blocks.value.find((b) => b.id === id)
+  
+  const block = blocks.value.find((b) => b.id === data.id)
   if (block) {
-    if (x !== undefined) block.x = Math.round(x)
-    if (y !== undefined) block.y = Math.round(y)
-    if (variableName !== undefined) block.variableName = variableName
-    if (variableType !== undefined) block.variableType = variableType
-    if (variableValue !== undefined) block.variableValue = variableValue
-    if (targetVariable !== undefined) block.targetVariable = targetVariable
-    if (leftType !== undefined) block.leftType = leftType
-    if (leftVariable !== undefined) block.leftVariable = leftVariable
-    if (leftNumber !== undefined) block.leftNumber = leftNumber
-    if (operator !== undefined) block.operator = operator
-    if (rightType !== undefined) block.rightType = rightType
-    if (rightVariable !== undefined) block.rightVariable = rightVariable
-    if (rightNumber !== undefined) block.rightNumber = rightNumber
-    if (selectedVariables !== undefined) block.selectedVariables = selectedVariables
-    if (comparator !== undefined) block.comparator = comparator // ЭТО ВАЖНО!
+    if (data.x !== undefined) block.x = Math.round(data.x)
+    if (data.y !== undefined) block.y = Math.round(data.y)
+    if (data.variableName !== undefined) block.variableName = data.variableName
+    if (data.variableType !== undefined) block.variableType = data.variableType
+    if (data.variableValue !== undefined) block.variableValue = data.variableValue
+    if (data.targetVariable !== undefined) block.targetVariable = data.targetVariable
+    if (data.leftType !== undefined) block.leftType = data.leftType
+    if (data.leftVariable !== undefined) block.leftVariable = data.leftVariable
+    if (data.leftNumber !== undefined) block.leftNumber = data.leftNumber
+    if (data.operator !== undefined) block.operator = data.operator
+    if (data.rightType !== undefined) block.rightType = data.rightType
+    if (data.rightVariable !== undefined) block.rightVariable = data.rightVariable
+    if (data.rightNumber !== undefined) block.rightNumber = data.rightNumber
+    if (data.selectedVariables !== undefined) block.selectedVariables = data.selectedVariables
+    if (data.comparator !== undefined) block.comparator = data.comparator
+    if (data.savedVariables !== undefined) block.savedVariables = data.savedVariables
   }
 }
-
 const updateVariableBlock = ({ id, variableName, variableType, variableValue }) => {
   const block = blocks.value.find((b) => b.id === id)
   if (block) {
@@ -167,12 +159,7 @@ const onMathExecute = ({ result, targetVariable }) => {
     updateVariableValue(targetVariable, result)
   }
 }
-
 const runExecution = () => {
-  
-  console.log('=== RUN EXECUTION START ===')
-  console.log('variables.value:', variables.value)
-  console.log('blocks.value:', blocks.value)
   
   addLine('--- Начало выполнения ---', 'output')
   
@@ -207,103 +194,73 @@ const runExecution = () => {
       if (!reachableIds.has(block.id)) continue
 
       if (block.type === 'variable') {
-        if (block.variableName) {
+        if (block.savedVariables && Array.isArray(block.savedVariables)) {
+          block.savedVariables.forEach(v => {
+            if (v.name) touchVar(v.name)
+          })
+        } else if (block.variableName) {
           touchVar(block.variableName)
         }
       }
-// ========== IF БЛОК ==========
-if (block.type === 'if') {
-  console.log('🔍 IF block data:', {
-    leftType: block.leftType,
-    leftVariable: block.leftVariable,
-    leftNumber: block.leftNumber,
-    comparator: block.comparator,
-    rightType: block.rightType,
-    rightVariable: block.rightVariable,
-    rightNumber: block.rightNumber
-  })
-  
-  if (block.leftType === 'variable' && !knownVarsSet.has(block.leftVariable)) {
-    addLine(
-      `❌ Ошибка: переменная "${block.leftVariable}" не объявлена в цепочке до if-блока`,
-      'error',
-    )
-    break
-  }
-  
-  if (block.rightType === 'variable' && !knownVarsSet.has(block.rightVariable)) {
-    addLine(
-      `❌ Ошибка: переменная "${block.rightVariable}" не объявлена в цепочке до if-блока`,
-      'error',
-    )
-    break
-  }
+      if (block.type === 'if') {
+        console.log(' IF block data:', {
+          leftType: block.leftType,
+          leftVariable: block.leftVariable,
+          leftNumber: block.leftNumber,
+          comparator: block.comparator,
+          rightType: block.rightType,
+          rightVariable: block.rightVariable,
+          rightNumber: block.rightNumber
+        })
 
-  let leftVal = 0
-  let leftDisplay = ''
-  if (block.leftType === 'variable') {
-    const v = getVarValueByName(block.leftVariable)
-    leftVal = typeof v === 'number' ? v : 0
-    leftDisplay = `${block.leftVariable} (${leftVal})`
-  } else {
-    leftVal = block.leftNumber || 0
-    leftDisplay = String(leftVal)
-  }
+        let leftVal = 0
+        let leftDisplay = ''
+        if (block.leftType === 'variable') {
+          const v = getVarValueByName(block.leftVariable)
+          leftVal = typeof v === 'number' ? v : 0
+          leftDisplay = `${block.leftVariable} (${leftVal})`
+        } else {
+          leftVal = block.leftNumber || 0
+          leftDisplay = String(leftVal)
+        }
 
-  let rightVal = 0
-  let rightDisplay = ''
-  if (block.rightType === 'variable') {
-    const v = getVarValueByName(block.rightVariable)
-    rightVal = typeof v === 'number' ? v : 0
-    rightDisplay = `${block.rightVariable} (${rightVal})`
-  } else {
-    rightVal = block.rightNumber || 0
-    rightDisplay = String(rightVal)
-  }
+        let rightVal = 0
+        let rightDisplay = ''
+        if (block.rightType === 'variable') {
+          const v = getVarValueByName(block.rightVariable)
+          rightVal = typeof v === 'number' ? v : 0
+          rightDisplay = `${block.rightVariable} (${rightVal})`
+        } else {
+          rightVal = block.rightNumber || 0
+          rightDisplay = String(rightVal)
+        }
 
-  let conditionMet = false
-  const comparator = block.comparator || '=='
-  
-  switch (comparator) {
-    case '==': conditionMet = leftVal == rightVal; break
-    case '!=': conditionMet = leftVal != rightVal; break
-    case '>': conditionMet = leftVal > rightVal; break
-    case '<': conditionMet = leftVal < rightVal; break
-    case '>=': conditionMet = leftVal >= rightVal; break
-    case '<=': conditionMet = leftVal <= rightVal; break
-  }
+        let conditionMet = false
+        const comparator = block.comparator || '=='
+        
+        switch (comparator) {
+          case '==': conditionMet = leftVal == rightVal; break
+          case '!=': conditionMet = leftVal != rightVal; break
+          case '>': conditionMet = leftVal > rightVal; break
+          case '<': conditionMet = leftVal < rightVal; break
+          case '>=': conditionMet = leftVal >= rightVal; break
+          case '<=': conditionMet = leftVal <= rightVal; break
+        }
 
-  if (conditionMet) {
-    addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
-  } else {
-    addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
-    break
-  }
-}
-      // ========== КОНЕЦ IF БЛОКА ==========
-
+        if (conditionMet) {
+          addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
+        } else {
+          addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
+          break
+        }
+      }
       if (block.type === 'math') {
         if (!block.targetVariable) {
           addLine('Math-блок без целевой переменной, пропуск', 'error')
           continue
         }
-        if (!knownVarsSet.has(block.targetVariable)) {
-          addLine(
-            `Ошибка: целевая переменная "${block.targetVariable}" не объявлена в цепочке до math-блока`,
-            'error',
-          )
-          continue
-        }
-
         let leftVal = 0
         if (block.leftType === 'variable') {
-          if (!knownVarsSet.has(block.leftVariable)) {
-            addLine(
-              `Ошибка: переменная "${block.leftVariable}" не объявлена в цепочке до math-блока`,
-              'error',
-            )
-            continue
-          }
           const v = getVarValueByName(block.leftVariable)
           leftVal = typeof v === 'number' ? v : 0
         } else {
@@ -312,13 +269,6 @@ if (block.type === 'if') {
 
         let rightVal = 0
         if (block.rightType === 'variable') {
-          if (!knownVarsSet.has(block.rightVariable)) {
-            addLine(
-              `Ошибка: переменная "${block.rightVariable}" не объявлена в цепочке до math-блока`,
-              'error',
-            )
-            continue
-          }
           const v = getVarValueByName(block.rightVariable)
           rightVal = typeof v === 'number' ? v : 0
         } else {
@@ -327,30 +277,16 @@ if (block.type === 'if') {
 
         let result
         switch (block.operator) {
-          case '+':
-            result = leftVal + rightVal
-            break
-          case '-':
-            result = leftVal - rightVal
-            break
-          case '*':
-            result = leftVal * rightVal
-            break
-          case '/':
-            result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
-            break
-          case '%':
-            result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
-            break
-          default:
-            result = 0
+          case '+': result = leftVal + rightVal; break
+          case '-': result = leftVal - rightVal; break
+          case '*': result = leftVal * rightVal; break
+          case '/': result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'; break
+          case '%': result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'; break
+          default: result = 0
         }
 
         if (result === 'Ошибка') {
-          addLine(
-            `Ошибка в math-блоке для переменной "${block.targetVariable}": деление на ноль`,
-            'error',
-          )
+          addLine(`Ошибка в math-блоке: деление на ноль`, 'error')
           continue
         }
 
@@ -366,16 +302,11 @@ if (block.type === 'if') {
         } else {
           addLine('Вывод:', 'output')
           for (const varName of varsToPrint) {
-            if (!knownVarsSet.has(varName)) {
-              addLine(`  ${varName} = (не объявлена в цепочке)`, 'error')
-              continue
-            }
-            
             const v = getVariableByName(varName)
             if (v) {
               addLine(`  ${v.name} = ${v.value}`, 'print')
             } else {
-              addLine(`  ${varName} = (не найдена)`, 'error')
+              addLine(`  ${varName} = (переменная не найдена)`, 'error')
             }
           }
         }

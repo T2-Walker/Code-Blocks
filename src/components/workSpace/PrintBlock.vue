@@ -77,7 +77,6 @@ const allowedVariables = computed(() => {
   const byName = new Map((variables.value || []).map((v) => [v.name, v]))
   return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
 })
-
 const previewText = computed(() => {
   const names = selectedVariables.value
     .map(item => item.name)
@@ -124,7 +123,6 @@ const emitUpdate = () => {
   emit('update-block', updateData)
 }
 
-// drag и кнопка соединения обрабатываются во внешнем WorkspaceBlock
 </script>
 
 <style scoped>
