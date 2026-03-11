@@ -1,78 +1,116 @@
 <template>
   <div class="if-content">
-      <div class="if-row if-condition-row">
-        <span class="if-keyword">if</span>
-        
-        <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-        
-        <select 
-          v-if="leftType === 'variable'" 
-          v-model="leftVariable" 
-          class="if-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
+    <div class="if-row if-condition-row">
+      <span class="if-keyword">if</span>
+      
+      <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
+        <option value="variable">Переменная</option>
+        <option value="number">Число</option>
+      </select>
+      
+      <select 
+        v-if="leftType === 'variable'" 
+        v-model="leftVariable" 
+        class="if-variable-select"
+        @change="onLeftVariableChange"
+      >
+        <option value="">Выберите переменную</option>
+        <optgroup label="Переменные">
+          <option v-for="varItem in simpleVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
-        </select>
-        
-        <input
-          v-else
-          v-model.number="leftNumber"
-          type="number"
-          class="if-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
+        </optgroup>
+        <optgroup label="Массивы">
+          <option v-for="varItem in arrayVariables" :key="varItem.name" :value="varItem.name">
+            {{ varItem.name }} [{{ varItem.elementType }}[{{ varItem.size }}]]
+          </option>
+        </optgroup>
+      </select>
+      
+      <select 
+        v-if="leftIsArray"
+        v-model="leftIndex" 
+        class="if-index-select"
+        @change="emitUpdate"
+      >
+        <option value="all">Весь массив</option>
+        <option v-for="i in leftArraySize" :key="i-1" :value="i-1">
+          [{{ i-1 }}]
+        </option>
+      </select>
+      
+      <input
+        v-else-if="leftType === 'number'"
+        v-model.number="leftNumber"
+        type="number"
+        class="if-number-input"
+        placeholder="число"
+        @input="emitUpdate"
+      />
 
-        <select v-model="comparator" class="if-comparator-select" @change="emitUpdate">
-          <option value="==">==</option>
-          <option value="!=">!=</option>
-          <option value=">">&gt;</option>
-          <option value="<">&lt;</option>
-          <option value=">=">&gt;=</option>
-          <option value="<=">&lt;=</option>
-        </select>
+      <select v-model="comparator" class="if-comparator-select" @change="emitUpdate">
+        <option value="==">==</option>
+        <option value="!=">!=</option>
+        <option value=">">&gt;</option>
+        <option value="<">&lt;</option>
+        <option value=">=">&gt;=</option>
+        <option value="<=">&lt;=</option>
+      </select>
 
-        <select v-model="rightType" class="if-type-select" @change="onRightTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-        
-        <select 
-          v-if="rightType === 'variable'" 
-          v-model="rightVariable" 
-          class="if-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
+      <select v-model="rightType" class="if-type-select" @change="onRightTypeChange">
+        <option value="variable">Переменная</option>
+        <option value="number">Число</option>
+      </select>
+      
+      <select 
+        v-if="rightType === 'variable'" 
+        v-model="rightVariable" 
+        class="if-variable-select"
+        @change="onRightVariableChange"
+      >
+        <option value="">Выберите переменную</option>
+        <optgroup label="Переменные">
+          <option v-for="varItem in simpleVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
-        </select>
-        
-        <input
-          v-else
-          v-model.number="rightNumber"
-          type="number"
-          class="if-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
-      </div>
+        </optgroup>
+        <optgroup label="Массивы">
+          <option v-for="varItem in arrayVariables" :key="varItem.name" :value="varItem.name">
+            {{ varItem.name }} [{{ varItem.elementType }}[{{ varItem.size }}]]
+          </option>
+        </optgroup>
+      </select>
+      
+      <select 
+        v-if="rightIsArray"
+        v-model="rightIndex" 
+        class="if-index-select"
+        @change="emitUpdate"
+      >
+        <option value="all">Весь массив</option>
+        <option v-for="i in rightArraySize" :key="i-1" :value="i-1">
+          [{{ i-1 }}]
+        </option>
+      </select>
+      
+      <input
+        v-else-if="rightType === 'number'"
+        v-model.number="rightNumber"
+        type="number"
+        class="if-number-input"
+        placeholder="число"
+        @input="emitUpdate"
+      />
+    </div>
 
-      <div class="if-row if-result-row">
-        <span class="if-condition-display">
-          {{ conditionExpression }}
-        </span>
-        <span class="if-result" :class="{ 'true': conditionResult, 'false': !conditionResult }">
-          {{ conditionResult ? 'true' : 'false' }}
-        </span>
-      </div>
+    <div class="if-row if-result-row">
+      <span class="if-condition-display">
+        {{ conditionExpression }}
+      </span>
+      <span class="if-result" :class="{ 'true': conditionResult, 'false': !conditionResult }">
+        {{ conditionResult ? 'true' : 'false' }}
+      </span>
+    </div>
   </div>
 </template>
 
@@ -91,6 +129,9 @@ const emit = defineEmits(['update-block', 'condition-check'])
 
 const { variables, getVariableByName } = useVariables()
 
+const leftIndex = ref(props.block.leftIndex || 'all')
+const rightIndex = ref(props.block.rightIndex || 'all')
+
 const leftType = ref(props.block.leftType || 'variable')
 const leftVariable = ref(props.block.leftVariable || '')
 const leftNumber = ref(props.block.leftNumber || 0)
@@ -107,10 +148,16 @@ const allowedNames = computed(() => {
   )
 })
 
-const allowedVariables = computed(() => {
-  const byName = new Map((variables.value || []).map((v) => [v.name, v]))
-  return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
-})
+const allVariables = computed(() => variables.value || [])
+
+const simpleVariables = computed(() => 
+  allVariables.value.filter(v => v.type !== 'array' && allowedNames.value.includes(v.name))
+)
+
+const arrayVariables = computed(() => 
+  allVariables.value.filter(v => v.type === 'array' && allowedNames.value.includes(v.name))
+)
+
 watch(allowedNames, (names) => {
   const set = new Set(names)
   let changed = false
@@ -130,20 +177,66 @@ watch(allowedNames, (names) => {
   }
 }, { immediate: true })
 
+const leftIsArray = computed(() => {
+  if (leftType.value !== 'variable' || !leftVariable.value) return false
+  const v = getVariableByName(leftVariable.value)
+  return v?.type === 'array'
+})
+
+const leftArraySize = computed(() => {
+  if (!leftIsArray.value) return 0
+  const v = getVariableByName(leftVariable.value)
+  return v?.size || 0
+})
+
+const rightIsArray = computed(() => {
+  if (rightType.value !== 'variable' || !rightVariable.value) return false
+  const v = getVariableByName(rightVariable.value)
+  return v?.type === 'array'
+})
+
+const rightArraySize = computed(() => {
+  if (!rightIsArray.value) return 0
+  const v = getVariableByName(rightVariable.value)
+  return v?.size || 0
+})
+
 const getLeftValue = () => {
-  if (leftType.value === 'variable') {
-    const varObj = getVariableByName(leftVariable.value)
-    return varObj ? varObj.value : 0
+  if (leftType.value === 'number') return leftNumber.value
+  
+  const varObj = getVariableByName(leftVariable.value)
+  if (!varObj) return 0
+  
+  // Для массива
+  if (varObj.type === 'array') {
+    if (leftIndex.value === 'all') {
+      // Для "весь массив" используем первый элемент
+      return varObj.value[0] || 0
+    } else {
+      const idx = parseInt(leftIndex.value)
+      return varObj.value[idx] || 0
+    }
   }
-  return leftNumber.value
+  
+  // Для обычной переменной
+  return varObj.value
 }
 
 const getRightValue = () => {
-  if (rightType.value === 'variable') {
-    const varObj = getVariableByName(rightVariable.value)
-    return varObj ? varObj.value : 0
+  if (rightType.value === 'number') return rightNumber.value
+  
+  const varObj = getVariableByName(rightVariable.value)
+  if (!varObj) return 0
+  
+  if (varObj.type === 'array') {
+    if (rightIndex.value === 'all') {
+      return varObj.value[0] || 0
+    } else {
+      const idx = parseInt(rightIndex.value)
+      return varObj.value[idx] || 0
+    }
   }
-  return rightNumber.value
+  return varObj.value
 }
 
 const conditionResult = computed(() => {
@@ -162,8 +255,27 @@ const conditionResult = computed(() => {
 })
 
 const conditionExpression = computed(() => {
-  const left = leftType.value === 'variable' ? leftVariable.value : leftNumber.value
-  const right = rightType.value === 'variable' ? rightVariable.value : rightNumber.value
+  let left = leftType.value === 'variable' ? leftVariable.value : leftNumber.value
+  let right = rightType.value === 'variable' ? rightVariable.value : rightNumber.value
+  let leftVal = getLeftValue()
+  let rightVal = getRightValue()
+  
+  if (leftIsArray.value && leftIndex.value !== 'all') {
+    left = `${leftVariable.value}[${leftIndex.value}] (${leftVal})`
+  } else if (leftIsArray.value) {
+    left = `${leftVariable.value}[0] (${leftVal})`
+  } else if (leftType.value === 'variable') {
+    left = `${leftVariable.value} (${leftVal})`
+  }
+  
+  if (rightIsArray.value && rightIndex.value !== 'all') {
+    right = `${rightVariable.value}[${rightIndex.value}] (${rightVal})`
+  } else if (rightIsArray.value) {
+    right = `${rightVariable.value}[0] (${rightVal})`
+  } else if (rightType.value === 'variable') {
+    right = `${rightVariable.value} (${rightVal})`
+  }
+  
   return `${left} ${comparator.value} ${right}`
 })
 
@@ -180,15 +292,16 @@ const emitUpdate = () => {
     id: props.block.id,
     leftType: leftType.value,
     leftVariable: leftVariable.value,
+    leftIndex: leftIndex.value,
     leftNumber: leftNumber.value,
     comparator: comparator.value,
     rightType: rightType.value,
     rightVariable: rightVariable.value,
+    rightIndex: rightIndex.value,
     rightNumber: rightNumber.value,
   }
   
   console.log('📤 IfBlock emitUpdate:', updateData)
-  
   emit('update-block', updateData)
 }
 
@@ -198,6 +311,7 @@ const onLeftTypeChange = () => {
   } else {
     leftNumber.value = 0
   }
+  leftIndex.value = 'all'
   emitUpdate()
 }
 
@@ -207,15 +321,24 @@ const onRightTypeChange = () => {
   } else {
     rightNumber.value = 0
   }
+  rightIndex.value = 'all'
   emitUpdate()
 }
 
-// drag и кнопка соединения обрабатываются во внешнем WorkspaceBlock
+const onLeftVariableChange = () => {
+  leftIndex.value = 'all'
+  emitUpdate()
+}
+
+const onRightVariableChange = () => {
+  rightIndex.value = 'all'
+  emitUpdate()
+}
 </script>
 
 <style scoped>
 .if-content {
-  min-width: 350px;
+  min-width: 400px;
   padding: 15px;
   background-color: #FFC107;
   border-radius: 5px;
@@ -255,7 +378,18 @@ const onRightTypeChange = () => {
 
 .if-variable-select {
   flex: 1;
-  min-width: 100px;
+  min-width: 120px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.if-index-select {
+  width: 80px;
   padding: 6px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
@@ -295,7 +429,7 @@ const onRightTypeChange = () => {
 }
 
 .if-result-row {
-  margin-top: 8px;
+  margin-top: 12px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.3);
   justify-content: flex-start;
@@ -325,35 +459,6 @@ const onRightTypeChange = () => {
 .if-result.false {
   background: #f44336;
   color: white;
-}
-
-.connect-btn {
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 24px;
-  height: 24px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 14px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.if-block:hover .connect-btn {
-  opacity: 1;
-}
-
-.connect-btn:hover {
-  background-color: #45a049;
-  transform: scale(1.1);
 }
 
 select, input {

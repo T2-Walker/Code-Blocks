@@ -1,6 +1,5 @@
 <template>
   <div class="variable-block-content">
-    <!-- Режим редактирования -->
     <template v-if="isEditing">
       <textarea
         ref="editInput"
@@ -14,22 +13,18 @@
         @blur="handleEditBlur"
       ></textarea>
 
-      <!-- Предпросмотр распознанного -->
       <div v-if="parsedVariables.length > 0" class="variable-preview">
         <div class="preview-items">
           <div v-for="(v, idx) in parsedVariables" :key="idx" class="preview-item">
-            <span class="preview-type">{{ v.type }}</span>
+            <span class="preview-type">{{ v.type === 'array' ? `${v.elementType}[${v.size}]` : v.type }}</span>
             <span class="preview-name">{{ v.name }}</span>
             <span class="preview-equals">=</span>
             <span class="preview-value">{{ formatValue(v) }}</span>
           </div>
         </div>
       </div>
-
-      <!-- Ошибка парсинга -->
       <div v-if="parseError" class="variable-parse-error">❌ {{ parseError }}</div>
 
-      <!-- Кнопки действий -->
       <div class="variable-edit-actions">
         <button class="variable-save-btn" @click.stop="saveVariableEdit" :disabled="!isValidEdit">
           ✓ Сохранить
@@ -38,7 +33,6 @@
       </div>
     </template>
 
-    <!-- Режим просмотра (сохраненные переменные) -->
     <template v-else>
       <div class="variable-saved-list">
         <div
@@ -47,14 +41,12 @@
           class="variable-saved-item"
           @click.stop="editVariable"
         >
-          <span class="saved-type">{{ v.type }}</span>
+          <span class="saved-type">{{ v.type === 'array' ? `${v.elementType}[${v.size}]` : v.type }}</span>
           <span class="saved-name">{{ v.name }}</span>
           <span class="saved-equals">=</span>
           <span class="saved-value">{{ formatValue(v) }}</span>
         </div>
       </div>
-
-      <!-- Кнопка редактирования (карандаш) -->
       <button
         class="variable-edit-trigger"
         @click.stop="editVariable"
@@ -86,6 +78,8 @@ const savedVariables = ref([])
 const parseError = ref('')
 const isValidEdit = ref(false)
 const editInput = ref(null)
+
+const types = ['int', 'boolean', 'double', 'string']
 
 const parseEditText = () => {
   console.log(' [PARSE] editText:', editText.value)
@@ -125,6 +119,34 @@ const parseEditText = () => {
 const parseLine = (line) => {
   console.log('[LINE] parsing line:', line)
   const result = { variables: [], error: null }
+
+  const arrayMatch = line.match(/^(int|boolean|double|string)\[(\d+)\]\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*\{([^}]*)\}$/)
+  
+  if (arrayMatch) {
+    const elementType = arrayMatch[1]
+    const size = parseInt(arrayMatch[2])
+    const arrayName = arrayMatch[3]
+    const valuesStr = arrayMatch[4].trim()
+    
+    const valueArray = valuesStr.split(',').map(v => {
+      const val = v.trim()
+      return parseValue(elementType, val)
+    })
+    
+    if (valueArray.length !== size) {
+      return { error: `Размер массива ${size}, но передано ${valueArray.length} элементов` }
+    }
+    
+    result.variables.push({
+      type: 'array',
+      name: arrayName,
+      elementType: elementType,
+      size: size,
+      value: valueArray
+    })
+    
+    return result
+  }
 
   const typeMatch = line.match(/^(int|boolean|double|string)\s+(.+)$/)
   if (!typeMatch) {
@@ -203,10 +225,27 @@ const parseValue = (type, str) => {
 }
 
 const formatValue = (v) => {
-  console.log('formatValue:', v)
+  if (v.type === 'array') {
+    return `[${v.value.join(', ')}]`
+  }
   if (v.type === 'string') return `"${v.value}"`
   if (v.type === 'boolean') return v.value ? 'true' : 'false'
   return v.value
+}
+
+const getDefaultValue = (type, elementType = 'int') => {
+  if (type === 'array') {
+    return []
+  }
+
+  const defaults = {
+    int: 0,
+    double: 0.0,
+    boolean: false,
+    string: '',
+  }
+  console.log(' [DEFAULT] default for', type, ':', defaults[type])
+  return defaults[type] || null
 }
 
 const editVariable = () => {
@@ -224,14 +263,31 @@ const editVariable = () => {
     console.log(' [EDIT] grouped by type:', byType)
 
     Object.entries(byType).forEach(([type, vars]) => {
-      const parts = vars.map((v) => {
-        if (v.value === getDefaultValue(type)) {
-          return v.name
-        } else {
-          return `${v.name} = ${v.type === 'string' ? `"${v.value}"` : v.value}`
-        }
-      })
-      lines.push(`${type} ${parts.join(', ')}`)
+      const hasArray = vars.some(v => v.type === 'array')
+      
+      if (hasArray) {
+        vars.forEach(v => {
+          if (v.type === 'array') {
+            const valuesStr = v.value.join(', ')
+            lines.push(`${v.elementType}[${v.size}] ${v.name} = {${valuesStr}}`)
+          } else {
+            if (v.value === getDefaultValue(v.type)) {
+              lines.push(`${v.type} ${v.name}`)
+            } else {
+              lines.push(`${v.type} ${v.name} = ${v.type === 'string' ? `"${v.value}"` : v.value}`)
+            }
+          }
+        })
+      } else {
+        const parts = vars.map((v) => {
+          if (v.value === getDefaultValue(type)) {
+            return v.name
+          } else {
+            return `${v.name} = ${v.type === 'string' ? `"${v.value}"` : v.value}`
+          }
+        })
+        lines.push(`${type} ${parts.join(', ')}`)
+      }
     })
 
     editText.value = lines.join('\n')
@@ -247,21 +303,6 @@ const editVariable = () => {
   })
 }
 
-const getDefaultValue = (type) => {
-  if (!types.includes(type)) {
-    return null
-  }
-
-  const defaults = {
-    int: 0,
-    double: 0.0,
-    boolean: false,
-    string: '',
-  }
-  console.log(' [DEFAULT] default for', type, ':', defaults[type])
-  return defaults[type] || null
-}
-
 const startNewVariable = () => {
   console.log('➕ [NEW] starting new variable')
   isEditing.value = true
@@ -270,8 +311,6 @@ const startNewVariable = () => {
     editInput.value?.focus()
   })
 }
-
-const types = ['int', 'boolean', 'double', 'string']
 
 watch(
   () => props.block,
@@ -314,12 +353,24 @@ const saveVariableEdit = () => {
 
   savedVariables.value.forEach((v) => {
     console.log(' [SAVE] upserting variable:', v.name, v.value)
-    upsertVariable({
-      oldName: v.name,
-      name: v.name,
-      type: v.type,
-      value: v.value,
-    })
+    
+    if (v.type === 'array') {
+      upsertVariable({
+        oldName: v.name,
+        name: v.name,
+        type: 'array',
+        elementType: v.elementType,
+        size: v.size,
+        value: v.value,
+      })
+    } else {
+      upsertVariable({
+        oldName: v.name,
+        name: v.name,
+        type: v.type,
+        value: v.value,
+      })
+    }
   })
 
   const updateData = {
@@ -349,102 +400,15 @@ const handleEditEnter = (e) => {
 
 const handleEditBlur = () => {}
 
-const editName = ref('')
-const editType = ref('int')
-const editValue = ref('')
-const nameInput = ref(null)
-
-const currentVariable = computed(() => {
-  if (!props.block.variableName) return null
-  return getVariableByName(props.block.variableName)
-})
-
-const displayName = computed(() => {
-  if (currentVariable.value) return currentVariable.value.name
-  return props.block.variableName || 'variable'
-})
-
-const displayValue = computed(() => {
-  if (currentVariable.value) {
-    const val = currentVariable.value.value
-    if (currentVariable.value.type === 'string') return `"${val}"`
-    if (currentVariable.value.type === 'boolean') return val ? 'true' : 'false'
-    return val
-  }
-  if (props.block.variableValue !== undefined) {
-    if (props.block.variableType === 'string') return `"${props.block.variableValue}"`
-    return props.block.variableValue
-  }
-  return '—'
-})
-
-const handleVariableClick = async () => {
-  if (isEditing.value) return
-
-  isEditing.value = true
-
-  if (currentVariable.value) {
-    editName.value = currentVariable.value.name
-    editType.value = currentVariable.value.type
-    editValue.value = currentVariable.value.value
-  } else {
-    editName.value = props.block.variableName || ''
-    editType.value = props.block.variableType || 'int'
-    editValue.value =
-      props.block.variableValue ??
-      (editType.value === 'int' ? 1 : editType.value === 'boolean' ? true : '')
-  }
-
-  await nextTick()
-  nameInput.value?.focus()
-  nameInput.value?.select()
-}
-
-const onTypeChange = () => {
-  if (editType.value === 'int') editValue.value = 1
-  else if (editType.value === 'boolean') editValue.value = true
-  else if (editType.value === 'string') editValue.value = ''
-}
-
-const saveChanges = () => {
-  if (!editName.value.trim()) {
-    alert('Имя переменной не может быть пустым')
-    return
-  }
-
-  const newName = editName.value.trim()
-  const oldName = props.block.variableName
-
-  try {
-    upsertVariable({
-      oldName,
-      name: newName,
-      type: editType.value,
-      value: editValue.value,
-    })
-
-    emit('update-block', {
-      id: props.block.id,
-      variableName: newName,
-      variableType: editType.value,
-      variableValue: editValue.value,
-      x: props.block.x,
-      y: props.block.y,
-    })
-
-    isEditing.value = false
-  } catch (e) {
-    alert(e.message)
-  }
-}
-
 const cancelEdit = () => {
   isEditing.value = false
+  editText.value = ''
+  parsedVariables.value = []
+  parseError.value = ''
 }
 </script>
 
 <style scoped>
-/* Стили для блока переменной */
 .variable-block-content {
   padding: 8px;
   min-width: 250px;
