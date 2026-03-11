@@ -29,6 +29,7 @@
 
   position: relative;
   overflow: hidden;
+
 }
 .about_alert {
   margin-top: 70px;

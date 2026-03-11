@@ -43,7 +43,7 @@ const goToTest = () => {
 }
 .main_button {
   background-color: #000000;
-  color: white;
+  color: rgb(255, 255, 255);
   border-color: black;
 }
 
