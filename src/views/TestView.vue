@@ -48,7 +48,6 @@ import { getAllConnections } from '@/domain/connections'
 import { buildExecutionChains } from '@/domain/executionChains'
 import { useVariables } from '@/composables/useVariables'
 import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext.js'
-import { executeChain } from '@/domain/executor.js'
 
 const blocks = ref([])
 const workspaceAreaRef = ref(null)
@@ -159,13 +158,14 @@ const onMathExecute = ({ result, targetVariable }) => {
 const runExecution = (initialContext = null) => {
   addLine('--- Начало выполнения ---', 'output')
 
-  const startBlocks = blocks.value.filter((b) => b.type === 'start')
-  if (startBlocks.length === 0) {
-    addLine('Ошибка: Не найден блок "Начать"', 'error')
-    return
+  if (!initialContext) {
+    const startBlocks = blocks.value.filter((b) => b.type === 'start')
+    if (startBlocks.length === 0) {
+      addLine('Ошибка: Не найден блок "Начать"', 'error')
+      return
+    }
+    saveInitialState(variables.value)
   }
-
-  saveInitialState(variables.value)
 
   const currentVariables = {}
   if (initialContext) {
@@ -174,16 +174,14 @@ const runExecution = (initialContext = null) => {
     variables.value.forEach((v) => {
       currentVariables[v.name] = v.value
     })
-    saveInitialState(variables.value)
   }
 
-  const { chains, reachableIds } = initialContext
+  const { chains, reachableIds } = initialContext?.startId
     ? buildExecutionChains(blocks.value, initialContext.startId)
     : buildExecutionChains(blocks.value)
 
   const getVarValueByName = (name) => {
-    const v = getVariableByName(name)
-    return v ? v.value : undefined
+    return currentVariables[name]
   }
 
   for (const chain of chains) {
@@ -204,12 +202,17 @@ const runExecution = (initialContext = null) => {
       if (block.type === 'variable') {
         if (block.savedVariables && Array.isArray(block.savedVariables)) {
           block.savedVariables.forEach((v) => {
-            if (v.name) touchVar(v.name)
+            if (v.name) {
+              touchVar(v.name)
+              currentVariables[v.name] = v.value
+            }
           })
         } else if (block.variableName) {
           touchVar(block.variableName)
+          currentVariables[block.variableName] = block.variableValue ?? 0
         }
       }
+
       if (block.type === 'if') {
         console.log(' IF block data:', {
           leftType: block.leftType,
@@ -273,35 +276,35 @@ const runExecution = (initialContext = null) => {
           block.id,
         )
 
-        if (conditionMet) {
-          let thenContext = {}
-          varNamesBeforeIf.forEach((name) => {
-            thenContext[name] = currentVariables[name]
-          })
-
-          const thenConnections = connections.value.filter(
-            (conn) => conn.from === block.id && conn.type === 'then',
-          )
-
-          for (const thenConn of thenConnections) {
-            const chainResults = executeChain(thenConn.to, thenContext)
-            chainResults.forEach((r) => {
-              if (r.type === 'print') addLine(r.text, 'print')
-            })
-          }
-
-          Object.assign(currentVariables, thenContext)
-          varNamesBeforeIf.forEach((name) => {
-            if (thenContext[name] !== undefined) {
-              updateVariableValue(name, thenContext[name])
+        if (conditionMet)
+          if (conditionMet) {
+            let thenContext = {
+              startId: null, // будет заполнено для каждой then-связи вместо null
             }
-          })
+            varNamesBeforeIf.forEach((name) => {
+              thenContext[name] = currentVariables[name]
+            })
 
-          addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
-        } else {
-          addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
-          break
-        }
+            const thenConnections = connections.value.filter(
+              (conn) => conn.from === block.id && conn.type === 'then',
+            )
+
+            for (const thenConn of thenConnections) {
+              const thenResult = runExecution({
+                ...thenContext,
+                startId: thenConn.to,
+              })
+
+              if (thenResult) {
+                Object.assign(currentVariables, thenResult)
+              }
+            }
+
+            addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
+          } else {
+            addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
+            if (!initialContext) break
+          }
       }
       if (block.type === 'math') {
         if (!block.targetVariable) {
@@ -350,7 +353,12 @@ const runExecution = (initialContext = null) => {
           continue
         }
 
-        updateVariableValue(block.targetVariable, result)
+        currentVariables[block.targetVariable] = result
+        const prefix = initialContext ? '[then] ' : ''
+        addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
+        if (!initialContext) {
+          updateVariableValue(block.targetVariable, result)
+        }
       }
 
       if (block.type === 'print') {
@@ -361,9 +369,10 @@ const runExecution = (initialContext = null) => {
         } else {
           addLine('Вывод:', 'output')
           for (const varName of varsToPrint) {
-            const v = getVariableByName(varName)
-            if (v) {
-              addLine(`  ${v.name} = ${v.value}`, 'print')
+            const value = currentVariables[varName]
+            if (value !== undefined) {
+              const prefix = initialContext ? '[then] ' : ''
+              addLine(`  ${prefix}${varName} = ${value}`, 'print')
             } else {
               addLine(`  ${varName} = (переменная не найдена)`, 'error')
             }
@@ -373,8 +382,15 @@ const runExecution = (initialContext = null) => {
     }
   }
 
-  setExecuted()
+  if (!initialContext) {
+    setExecuted()
+  }
+
   addLine('--- Выполнение завершено ---', 'output')
+
+  if (initialContext) {
+    return currentVariables
+  }
 }
 const endExecution = () => {
   restoreInitialState(updateVariableValue)
