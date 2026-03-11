@@ -1,13 +1,17 @@
 let connections = []
 let nextId = 1
 
-export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, allBlocks) {
+export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, allBlocks, connectionType = 'normal') {
   if (!sourceBlock || !targetBlock) {
     return { allowed: false, reason: 'Блок не существует' }
   }
 
   if (sourceBlock.id === targetBlock.id) {
     return { allowed: false, reason: 'Нельзя соединить блок с самим собой' }
+  }
+
+  if (connectionType.value === 'then' && sourceBlock.type !== 'if') {
+    return { allowed: false, reason: 'Then-связи можно создавать только от блока Условие' }
   }
 
   const exists = currentConnections.some(
@@ -103,7 +107,7 @@ function checkCycle(sourceId, targetId, conns) {
   return false
 }
 
-export function createConnection(fromBlockId, toBlockId) {
+export function createConnection(fromBlockId, toBlockId, type = 'normal') {
   const exists = connections.some(
     (conn) =>
       (conn.from === fromBlockId && conn.to === toBlockId) ||
@@ -117,6 +121,7 @@ export function createConnection(fromBlockId, toBlockId) {
     from: fromBlockId,
     to: toBlockId,
     createdAt: Date.now(),
+    type: type,
   }
 
   connections.push(connection)

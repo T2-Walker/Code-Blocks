@@ -5,6 +5,7 @@ export function buildExecutionChains(blocks) {
 
   const nextMap = {}
   const prevMap = {}
+  const thenMap = {}
 
   for (const conn of connections) {
     if (!nextMap[conn.from]) nextMap[conn.from] = []
@@ -13,6 +14,7 @@ export function buildExecutionChains(blocks) {
     if (prevMap[conn.to] === undefined) {
       prevMap[conn.to] = conn.from
     }
+
   }
 
   const byId = {}

@@ -2,15 +2,15 @@
   <div class="if-content">
       <div class="if-row if-condition-row">
         <span class="if-keyword">if</span>
-        
+
         <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
           <option value="variable">Переменная</option>
           <option value="number">Число</option>
         </select>
-        
-        <select 
-          v-if="leftType === 'variable'" 
-          v-model="leftVariable" 
+
+        <select
+          v-if="leftType === 'variable'"
+          v-model="leftVariable"
           class="if-variable-select"
           @change="emitUpdate"
         >
@@ -19,7 +19,7 @@
             {{ varItem.name }}
           </option>
         </select>
-        
+
         <input
           v-else
           v-model.number="leftNumber"
@@ -42,10 +42,10 @@
           <option value="variable">Переменная</option>
           <option value="number">Число</option>
         </select>
-        
-        <select 
-          v-if="rightType === 'variable'" 
-          v-model="rightVariable" 
+
+        <select
+          v-if="rightType === 'variable'"
+          v-model="rightVariable"
           class="if-variable-select"
           @change="emitUpdate"
         >
@@ -54,7 +54,7 @@
             {{ varItem.name }}
           </option>
         </select>
-        
+
         <input
           v-else
           v-model.number="rightNumber"
@@ -149,7 +149,7 @@ const getRightValue = () => {
 const conditionResult = computed(() => {
   const leftVal = getLeftValue()
   const rightVal = getRightValue()
-  
+
   switch (comparator.value) {
     case '==': return leftVal == rightVal
     case '!=': return leftVal != rightVal
@@ -186,9 +186,9 @@ const emitUpdate = () => {
     rightVariable: rightVariable.value,
     rightNumber: rightNumber.value,
   }
-  
+
   console.log('📤 IfBlock emitUpdate:', updateData)
-  
+
   emit('update-block', updateData)
 }
 
@@ -210,7 +210,6 @@ const onRightTypeChange = () => {
   emitUpdate()
 }
 
-// drag и кнопка соединения обрабатываются во внешнем WorkspaceBlock
 </script>
 
 <style scoped>
