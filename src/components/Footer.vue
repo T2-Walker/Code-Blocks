@@ -1,3 +1,4 @@
+<script setup></script>
 <template>
   <footer class="navbar navbar-expand-lg navbar-black bg-black">
     <div class="container">
@@ -9,8 +10,7 @@
 </template>
 <style scoped>
 .footer a {
-  font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-  color: rgba(255, 255, 255, 0.5);
+  font-family: 'evolventa', Arial, sans-serif;
   text-decoration: none;
   font-size: 0.95em;
   text-transform: uppercase;
