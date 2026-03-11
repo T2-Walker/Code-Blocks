@@ -5,11 +5,11 @@
       <button class="end-btn" @click="endExecution" :disabled="!isExecuted">⏹ КОНЕЦ</button>
       <button class="back-btn" @click="$router.push('/')">← НАЗАД</button>
     </div>
-    
+
     <button class="terminal-toggle" @click="toggleTerminal">
       {{ isTerminalVisible ? '▼' : '▲' }}
     </button>
-    
+
     <div class="container">
       <SidebarBlocks @palette-drop="onPaletteDrop" />
       <WorkspaceArea
@@ -26,7 +26,7 @@
         @math-execute="onMathExecute"
       />
     </div>
-    
+
     <DraggableTerminal
       v-if="isTerminalVisible"
       :lines="terminalLines"
@@ -38,7 +38,6 @@
 </template>
 
 <script setup>
-
 import { ref, watch } from 'vue'
 import SidebarBlocks from '@/components/sidebar/SidebarBlocks.vue'
 import WorkspaceArea from '@/components/workSpace/WorkspaceArea.vue'
@@ -48,28 +47,25 @@ import { useExecutionState } from '@/composables/useExecutionState'
 import { getAllConnections } from '@/domain/connections'
 import { buildExecutionChains } from '@/domain/executionChains'
 import { useVariables } from '@/composables/useVariables'
+import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext.js'
+import { executeChain } from '@/domain/executor.js'
 
 const blocks = ref([])
 const workspaceAreaRef = ref(null)
 const connections = ref([])
 const { variables, getVariableByName, upsertVariable } = useVariables()
-const { 
-  terminalLines, 
-  isTerminalVisible, 
+const {
+  terminalLines,
+  isTerminalVisible,
   terminalPosition,
-  addLine, 
-  clearTerminal, 
+  addLine,
+  clearTerminal,
   toggleTerminal,
-  updatePosition 
+  updatePosition,
 } = useTerminal()
 
-const { 
-  isExecuted,
-  saveInitialState, 
-  restoreInitialState, 
-  setExecuted,
-  resetExecution 
-} = useExecutionState()
+const { isExecuted, saveInitialState, restoreInitialState, setExecuted, resetExecution } =
+  useExecutionState()
 const updateVariableValue = (name, value) => {
   const variable = getVariableByName(name)
   if (variable) {
@@ -77,31 +73,32 @@ const updateVariableValue = (name, value) => {
       oldName: name,
       name,
       type: variable.type,
-      value
+      value,
     })
   }
 }
 
-  watch(variables, (newVars) => {
+watch(
+  variables,
+  (newVars) => {
     if (!isExecuted.value) {
       saveInitialState(newVars)
     }
-  }, { deep: true, immediate: true })
+  },
+  { deep: true, immediate: true },
+)
 
 const addBlock = (newBlock) => {
-  
-  const exists = blocks.value.some(b => b.id === newBlock.id)
+  const exists = blocks.value.some((b) => b.id === newBlock.id)
   if (exists) {
     return
   }
-  
+
   blocks.value.push(newBlock)
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
 
 const updateBlockPosition = (data) => {
-  
-  
   const block = blocks.value.find((b) => b.id === data.id)
   if (block) {
     if (data.x !== undefined) block.x = Math.round(data.x)
@@ -133,7 +130,7 @@ const updateVariableBlock = ({ id, variableName, variableType, variableValue }) 
 
 const deleteBlock = (blockId) => {
   const block = blocks.value.find((b) => b.id === blockId)
-  const blockName = block ? (block.variableName || block.name) : 'блок'
+  const blockName = block ? block.variableName || block.name : 'блок'
   blocks.value = blocks.value.filter((b) => b.id !== blockId)
   connections.value = getAllConnections()
   addLine(`Удален блок: ${blockName}`, 'output')
@@ -159,19 +156,30 @@ const onMathExecute = ({ result, targetVariable }) => {
     updateVariableValue(targetVariable, result)
   }
 }
-const runExecution = () => {
-  
+const runExecution = (initialContext = null) => {
   addLine('--- Начало выполнения ---', 'output')
-  
-  const startBlocks = blocks.value.filter(b => b.type === 'start')
+
+  const startBlocks = blocks.value.filter((b) => b.type === 'start')
   if (startBlocks.length === 0) {
     addLine('Ошибка: Не найден блок "Начать"', 'error')
     return
   }
 
   saveInitialState(variables.value)
- 
-  const { chains, reachableIds } = buildExecutionChains(blocks.value)
+
+  const currentVariables = {}
+  if (initialContext) {
+    Object.assign(currentVariables, initialContext)
+  } else {
+    variables.value.forEach((v) => {
+      currentVariables[v.name] = v.value
+    })
+    saveInitialState(variables.value)
+  }
+
+  const { chains, reachableIds } = initialContext
+    ? buildExecutionChains(blocks.value, initialContext.startId)
+    : buildExecutionChains(blocks.value)
 
   const getVarValueByName = (name) => {
     const v = getVariableByName(name)
@@ -195,7 +203,7 @@ const runExecution = () => {
 
       if (block.type === 'variable') {
         if (block.savedVariables && Array.isArray(block.savedVariables)) {
-          block.savedVariables.forEach(v => {
+          block.savedVariables.forEach((v) => {
             if (v.name) touchVar(v.name)
           })
         } else if (block.variableName) {
@@ -210,7 +218,7 @@ const runExecution = () => {
           comparator: block.comparator,
           rightType: block.rightType,
           rightVariable: block.rightVariable,
-          rightNumber: block.rightNumber
+          rightNumber: block.rightNumber,
         })
 
         let leftVal = 0
@@ -237,17 +245,58 @@ const runExecution = () => {
 
         let conditionMet = false
         const comparator = block.comparator || '=='
-        
+
         switch (comparator) {
-          case '==': conditionMet = leftVal == rightVal; break
-          case '!=': conditionMet = leftVal != rightVal; break
-          case '>': conditionMet = leftVal > rightVal; break
-          case '<': conditionMet = leftVal < rightVal; break
-          case '>=': conditionMet = leftVal >= rightVal; break
-          case '<=': conditionMet = leftVal <= rightVal; break
+          case '==':
+            conditionMet = leftVal == rightVal
+            break
+          case '!=':
+            conditionMet = leftVal != rightVal
+            break
+          case '>':
+            conditionMet = leftVal > rightVal
+            break
+          case '<':
+            conditionMet = leftVal < rightVal
+            break
+          case '>=':
+            conditionMet = leftVal >= rightVal
+            break
+          case '<=':
+            conditionMet = leftVal <= rightVal
+            break
         }
 
+        const varNamesBeforeIf = getDeclaredVariableNamesBeforeBlock(
+          blocks.value,
+          connections.value,
+          block.id,
+        )
+
         if (conditionMet) {
+          let thenContext = {}
+          varNamesBeforeIf.forEach((name) => {
+            thenContext[name] = currentVariables[name]
+          })
+
+          const thenConnections = connections.value.filter(
+            (conn) => conn.from === block.id && conn.type === 'then',
+          )
+
+          for (const thenConn of thenConnections) {
+            const chainResults = executeChain(thenConn.to, thenContext)
+            chainResults.forEach((r) => {
+              if (r.type === 'print') addLine(r.text, 'print')
+            })
+          }
+
+          Object.assign(currentVariables, thenContext)
+          varNamesBeforeIf.forEach((name) => {
+            if (thenContext[name] !== undefined) {
+              updateVariableValue(name, thenContext[name])
+            }
+          })
+
           addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
         } else {
           addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
@@ -277,12 +326,23 @@ const runExecution = () => {
 
         let result
         switch (block.operator) {
-          case '+': result = leftVal + rightVal; break
-          case '-': result = leftVal - rightVal; break
-          case '*': result = leftVal * rightVal; break
-          case '/': result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'; break
-          case '%': result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'; break
-          default: result = 0
+          case '+':
+            result = leftVal + rightVal
+            break
+          case '-':
+            result = leftVal - rightVal
+            break
+          case '*':
+            result = leftVal * rightVal
+            break
+          case '/':
+            result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
+            break
+          case '%':
+            result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
+            break
+          default:
+            result = 0
         }
 
         if (result === 'Ошибка') {
@@ -291,12 +351,11 @@ const runExecution = () => {
         }
 
         updateVariableValue(block.targetVariable, result)
-        
       }
 
       if (block.type === 'print') {
         const varsToPrint = block.selectedVariables || []
-        
+
         if (varsToPrint.length === 0) {
           addLine('Нет переменных для вывода', 'output')
         } else {
@@ -313,7 +372,7 @@ const runExecution = () => {
       }
     }
   }
-  
+
   setExecuted()
   addLine('--- Выполнение завершено ---', 'output')
 }
@@ -322,11 +381,9 @@ const endExecution = () => {
   resetExecution()
   addLine('🔄 Возврат к начальным значениям', 'output')
 }
-
 </script>
 
 <style scoped>
-
 .test-page {
   width: 100%;
   height: 100vh;
@@ -422,7 +479,7 @@ const endExecution = () => {
   position: absolute;
   top: 20px;
   left: 30px;
-  background: #2196F3;
+  background: #2196f3;
   color: white;
   border: none;
   border-radius: 5px;
@@ -433,6 +490,6 @@ const endExecution = () => {
 }
 
 .debug-btn:hover {
-  background: #1976D2;
+  background: #1976d2;
 }
 </style>
