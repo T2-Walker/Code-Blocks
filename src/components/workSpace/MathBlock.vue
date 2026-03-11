@@ -1,15 +1,9 @@
 <template>
-  <div 
-    class="workspace-block math-block"
-    :class="{ dragging: isDragging, 'connection-source': isConnectionSource }"
-    :style="{ left: block.x + 'px', top: block.y + 'px', backgroundColor: block.color }"
-    @pointerdown="startDrag"
-  >
-    <div class="math-content">
+  <div class="math-content">
       <div class="math-row math-target-row">
         <select v-model="targetVariable" class="math-target-select" @change="onTargetChange">
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
@@ -21,19 +15,19 @@
           <option value="variable">Переменная</option>
           <option value="number">Число</option>
         </select>
-        
-        <select 
-          v-if="leftType === 'variable'" 
-          v-model="leftVariable" 
+
+        <select
+          v-if="leftType === 'variable'"
+          v-model="leftVariable"
           class="math-variable-select"
           @change="emitUpdate"
         >
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
-        
+
         <input
           v-else
           v-model.number="leftNumber"
@@ -59,19 +53,19 @@
           <option value="variable">Переменная</option>
           <option value="number">Число</option>
         </select>
-        
-        <select 
-          v-if="rightType === 'variable'" 
-          v-model="rightVariable" 
+
+        <select
+          v-if="rightType === 'variable'"
+          v-model="rightVariable"
           class="math-variable-select"
           @change="emitUpdate"
         >
           <option value="">Выберите переменную</option>
-          <option v-for="varItem in variables" :key="varItem.name" :value="varItem.name">
+          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
             {{ varItem.name }}
           </option>
         </select>
-        
+
         <input
           v-else
           v-model.number="rightNumber"
@@ -86,38 +80,23 @@
         <span class="math-result-label">{{ targetVariable }} =</span>
         <span class="math-result">{{ computedResult }}</span>
       </div>
-    </div>
-
-    <button 
-      class="connect-btn"
-      @click.stop="startConnection"
-      @pointerdown.stop
-    >
-      🔗
-    </button>
-
-    <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import DeleteButton from '../UI/DeleteButton.vue'
 import { useVariables } from '@/composables/useVariables'
+import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext'
 
 const props = defineProps({
   block: Object,
-  bounds: Object,
-  isConnectionSource: Boolean
+  allBlocks: Array,
+  allConnections: Array,
 })
 
-const emit = defineEmits([
-  'drag-start', 'drag-move', 'drag-end', 'delete',
-  'start-connection', 'update-block', 'execute'
-])
+const emit = defineEmits(['update-block', 'execute'])
 
 const { variables, getVariableByName } = useVariables()
-const isDragging = ref(false)
 
 const targetVariable = ref(props.block.targetVariable || '')
 const leftType = ref(props.block.leftType || 'variable')
@@ -127,6 +106,48 @@ const operator = ref(props.block.operator || '+')
 const rightType = ref(props.block.rightType || 'variable')
 const rightVariable = ref(props.block.rightVariable || '')
 const rightNumber = ref(props.block.rightNumber || 0)
+
+const allowedNames = computed(() => {
+  return getDeclaredVariableNamesBeforeBlock(
+    props.allBlocks || [],
+    props.allConnections || [],
+    props.block.id,
+  )
+})
+
+const allowedNameSet = computed(() => new Set(allowedNames.value))
+
+const allowedVariables = computed(() => {
+  const byName = new Map((variables.value || []).map((v) => [v.name, v]))
+  return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
+})
+
+watch(
+  allowedNameSet,
+  (set) => {
+    let changed = false
+
+    if (targetVariable.value && !set.has(targetVariable.value)) {
+      targetVariable.value = ''
+      changed = true
+    }
+
+    if (leftType.value === 'variable' && leftVariable.value && !set.has(leftVariable.value)) {
+      leftVariable.value = ''
+      changed = true
+    }
+
+    if (rightType.value === 'variable' && rightVariable.value && !set.has(rightVariable.value)) {
+      rightVariable.value = ''
+      changed = true
+    }
+
+    if (changed) {
+      emitUpdate()
+    }
+  },
+  { immediate: true },
+)
 
 const computedResult = computed(() => {
   let leftVal = 0
@@ -157,17 +178,17 @@ const computedResult = computed(() => {
 
 watch(computedResult, (newResult) => {
   if (targetVariable.value && newResult !== 'Ошибка') {
-    emit('execute', { 
-      id: props.block.id, 
-      result: newResult, 
-      targetVariable: targetVariable.value 
+    emit('execute', {
+      id: props.block.id,
+      result: newResult,
+      targetVariable: targetVariable.value
     })
   }
 })
 
 const emitUpdate = () => {
   const result = computedResult.value
-  
+
   const updateData = {
     id: props.block.id,
     targetVariable: targetVariable.value,
@@ -180,9 +201,9 @@ const emitUpdate = () => {
     rightNumber: rightNumber.value,
     result: result
   }
-  
+
   console.log('🚀 MathBlock emitUpdate CALLED with:', JSON.stringify(updateData))
-  
+
   emit('update-block', updateData)
 }
 
@@ -208,111 +229,17 @@ const onRightTypeChange = () => {
   emitUpdate()
 }
 
-const startDrag = (event) => {
-  if (event.target.closest('.delete-btn')) return
-  if (event.target.closest('.connect-btn')) return
-  if (event.target.closest('select')) return
-  if (event.target.closest('input')) return
 
-  event.preventDefault()
-  isDragging.value = true
-
-  const startX = event.clientX
-  const startY = event.clientY
-  const startBlockX = props.block.x
-  const startBlockY = props.block.y
-
-  emit('drag-start', props.block.id)
-
-  const onPointerMove = (e) => {
-    const dx = e.clientX - startX
-    const dy = e.clientY - startY
-
-    let newX = startBlockX + dx
-    let newY = startBlockY + dy
-
-    if (props.bounds) {
-      newX = Math.max(props.bounds.minX, Math.min(newX, props.bounds.maxX))
-      newY = Math.max(props.bounds.minY, Math.min(newY, props.bounds.maxY))
-    }
-
-    emit('drag-move', { id: props.block.id, x: newX, y: newY })
-  }
-
-  const onPointerUp = () => {
-    isDragging.value = false
-    document.removeEventListener('pointermove', onPointerMove)
-    document.removeEventListener('pointerup', onPointerUp)
-    document.removeEventListener('pointercancel', onPointerUp)
-  }
-
-  document.addEventListener('pointermove', onPointerMove)
-  document.addEventListener('pointerup', onPointerUp)
-  document.addEventListener('pointercancel', onPointerUp)
-}
-
-const startConnection = (event) => {
-  event.stopPropagation()
-  emit('start-connection', props.block.id)
-}
 </script>
 
 <style scoped>
-
-.workspace-block.math-block {
-  position: absolute !important;
-  display: block !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
-.workspace-block:not(.math-block) {
-  border: 2px solid yellow !important;
-}
-
-.math-block {
+.math-content {
   min-width: 300px;
   padding: 15px;
   background-color: #FF5722;
-  position: absolute;
   border-radius: 5px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
-
-  overflow: visible;
-  display: block;
-  box-sizing: border-box;
-
-  margin: 0;
-
-  isolation: isolate;
-}
-
-.math-block::before,
-.math-block::after {
-  display: none;
-}
-
-.math-block {
-  min-width: 300px;
-  padding: 15px;
-  background-color: #FF5722 !important;
-  position: absolute;
-  border-radius: 5px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  border: 2px solid red !important;
-  overflow: hidden;
-  display: block;
-  box-sizing: border-box;
-  margin: 0;
-}
-
-.math-content,
-.math-row,
-.math-target-row,
-.math-operator-row,
-.math-result-row {
-  background-color: #FF5722 !important;
 }
 
 select, input {
@@ -458,46 +385,5 @@ select, input {
   font-weight: bold;
   color: white;
   margin: 0 5px;
-}
-
-.connect-btn {
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  width: 24px;
-  height: 24px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 50%;
-  font-size: 14px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s, transform 0.2s;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.math-block:hover .connect-btn {
-  opacity: 1;
-}
-
-.connect-btn:hover {
-  background-color: #45a049;
-  transform: scale(1.1);
-}
-
-select, input {
-  outline: none;
-}
-
-select:hover, input:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-select:focus, input:focus {
-  border-color: #4CAF50;
 }
 </style>

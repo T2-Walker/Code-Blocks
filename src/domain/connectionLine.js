@@ -17,11 +17,15 @@ export function calculateConnectionLine(block1, block2) {
 export function createTempLine(fromBlock, mouseX, mouseY) {
   if (!fromBlock) return null
   
+  const x1 = fromBlock.x + 50
+  const y1 = fromBlock.y + 25
+  
   return {
-    x1: fromBlock.x + 50,
-    y1: fromBlock.y + 25,
-    x2: mouseX,
-    y2: mouseY
+    x1: Math.round(x1),
+    y1: Math.round(y1),
+    x2: Math.round(mouseX),
+    y2: Math.round(mouseY),
+    temp: true
   }
 }
 

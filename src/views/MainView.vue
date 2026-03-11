@@ -19,7 +19,7 @@ const goToTest = () => {
   console.log('Кнопка нажата')
   router.push('/test')
 }
-// Переброс
+
 </script>
 
 <style scoped>

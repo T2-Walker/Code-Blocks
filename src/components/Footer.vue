@@ -13,7 +13,7 @@
   font-family: 'evolventa', Arial, sans-serif;
   text-decoration: none;
   font-size: 0.95em;
-  text-transform: uppercase; /* заглавные буквы */
+  text-transform: uppercase;
   letter-spacing: 1.5px;
 }
 </style>
