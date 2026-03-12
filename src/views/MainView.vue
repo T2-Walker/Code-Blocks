@@ -48,10 +48,10 @@ const goToTest = () => {
 .test-button {
   background: linear-gradient(135deg, rgba(20, 110, 59, 0.73), rgba(12, 94, 39, 0.73));
   box-shadow:
-    0 0 15px #00ff23,
-    inset 0 0 15px rgba(85, 255, 66, 0.62);
+    0 0 15px #00ff28,
+    inset 0 0 13px rgb(28, 250, 61);
   color: white;
-  border: 2px solid rgba(157, 255, 173, 0.59);
+  border: 2px solid rgba(176, 255, 188, 0.75);
   border-radius: 50px;
   padding: 10px 25px;
   font-size: 16px;
@@ -67,11 +67,11 @@ const goToTest = () => {
 .test-button:hover {
   background: linear-gradient(135deg, rgba(20, 110, 59, 0.73), rgba(12, 94, 39, 0.73));
   box-shadow:
-    0 0 15px #00ff23,
+    0 0 15px #00ff28,
     0 5px 15px rgb(4, 2, 27),
-    inset 0 0 15px rgba(85, 255, 66, 0.62);
+    inset 0 0 13px rgb(28, 250, 61);
   color: white;
-  border: 2px solid rgba(157, 255, 173, 0.59);
+  border: 2px solid rgba(176, 255, 188, 0.75);
   transform: scale(1.05);
 }
 </style>
