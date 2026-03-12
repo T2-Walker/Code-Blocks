@@ -37,6 +37,20 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
         reason: 'От блока "Начать" может идти только одна исходящая связь',
       }
     }
+  } else if (sourceBlock.type === 'if') {
+    const existingNormal = currentConnections.some(
+      conn => conn.from === sourceBlock.id && conn.type === 'normal'
+    )
+    const existingThen = currentConnections.some(
+      conn => conn.from === sourceBlock.id && conn.type === 'then'
+    )
+
+    if (connectionType === 'normal' && existingNormal) {
+      return { allowed: false, reason: 'У блока If может быть только одна обычная связь' }
+    }
+    if (connectionType === 'then' && existingThen) {
+      return { allowed: false, reason: 'У блока If может быть только одна then-связь' }
+    }
   } else if ((outgoingCount[sourceBlock.id] || 0) >= 1) {
     return {
       allowed: false,

@@ -63,9 +63,16 @@ export function buildExecutionChains(blocks, startId = null) {
         }
 
         const nextForCurrent = nextMap[currentId] || []
-        if (nextForCurrent.length !== 1) break
+        const normalNext = nextForCurrent.filter((id) => {
+          const conn = getAllConnections().find((c) => c.from === currentId && c.to === id)
+          return conn && conn.type !== 'then'
+        })
 
-        currentId = nextForCurrent[0]
+        // ЕСЛИ НЕТ NORMAL СВЯЗЕЙ - ЗАКАНЧИВАЕМ ЦЕПОЧКУ
+        if (normalNext.length === 0) break
+
+        // БЕРЕМ ПЕРВУЮ NORMAL СВЯЗЬ (ОСНОВНАЯ ЦЕПОЧКА)
+        currentId = normalNext[0]
       }
 
       chains.push(chain)

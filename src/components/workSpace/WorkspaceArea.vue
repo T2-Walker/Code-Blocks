@@ -303,7 +303,11 @@ const completeConnection = (targetBlockId) => {
     return
   }
 
-  const newConnection = createConnection(sourceBlockId.value, targetBlockId, sourceConnectionType.value)
+  const newConnection = createConnection(
+    sourceBlockId.value,
+    targetBlockId,
+    sourceConnectionType.value,
+  )
   if (newConnection) {
     emit('connection-created')
     addLine(`Создана связь между блоками`, 'success')

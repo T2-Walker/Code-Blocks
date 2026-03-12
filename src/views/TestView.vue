@@ -276,29 +276,28 @@ const runExecution = (initialContext = null) => {
           block.id,
         )
 
-        if (conditionMet)
-          if (conditionMet) {
-            let thenContext = {
-              startId: null, // будет заполнено для каждой then-связи вместо null
-            }
-            varNamesBeforeIf.forEach((name) => {
-              thenContext[name] = currentVariables[name]
+        if (conditionMet) {
+          let thenContext = {
+            startId: null, // будет заполнено для каждой then-связи вместо null
+          }
+          varNamesBeforeIf.forEach((name) => {
+            thenContext[name] = currentVariables[name]
+          })
+
+          const thenConnections = connections.value.filter(
+            (conn) => conn.from === block.id && conn.type === 'then',
+          )
+
+          for (const thenConn of thenConnections) {
+            const thenResult = runExecution({
+              ...thenContext,
+              startId: thenConn.to,
             })
 
-            const thenConnections = connections.value.filter(
-              (conn) => conn.from === block.id && conn.type === 'then',
-            )
-
-            for (const thenConn of thenConnections) {
-              const thenResult = runExecution({
-                ...thenContext,
-                startId: thenConn.to,
-              })
-
-              if (thenResult) {
-                Object.assign(currentVariables, thenResult)
-              }
+            if (thenResult) {
+              Object.assign(currentVariables, thenResult)
             }
+          }
 
             addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
           } else {
@@ -307,6 +306,10 @@ const runExecution = (initialContext = null) => {
           }
       }
       if (block.type === 'math') {
+
+        const isThenBranch = initialContext?.startId !== undefined
+        const prefix = isThenBranch ? '[then] ' : ''
+
         if (!block.targetVariable) {
           addLine('Math-блок без целевой переменной, пропуск', 'error')
           continue
@@ -354,7 +357,7 @@ const runExecution = (initialContext = null) => {
         }
 
         currentVariables[block.targetVariable] = result
-        const prefix = initialContext ? '[then] ' : ''
+
         addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
         if (!initialContext) {
           updateVariableValue(block.targetVariable, result)
@@ -364,6 +367,9 @@ const runExecution = (initialContext = null) => {
       if (block.type === 'print') {
         const varsToPrint = block.selectedVariables || []
 
+        const isThenBranch = initialContext?.startId !== undefined
+        const prefix = isThenBranch ? '[then] ' : ''
+
         if (varsToPrint.length === 0) {
           addLine('Нет переменных для вывода', 'output')
         } else {
@@ -371,7 +377,6 @@ const runExecution = (initialContext = null) => {
           for (const varName of varsToPrint) {
             const value = currentVariables[varName]
             if (value !== undefined) {
-              const prefix = initialContext ? '[then] ' : ''
               addLine(`  ${prefix}${varName} = ${value}`, 'print')
             } else {
               addLine(`  ${varName} = (переменная не найдена)`, 'error')
