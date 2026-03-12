@@ -5,11 +5,11 @@
       <button class="end-btn" @click="endExecution" :disabled="!isExecuted">⏹ КОНЕЦ</button>
       <button class="back-btn" @click="$router.push('/')">← НАЗАД</button>
     </div>
-    
+
     <button class="terminal-toggle" @click="toggleTerminal">
       {{ isTerminalVisible ? '▼' : '▲' }}
     </button>
-    
+
     <div class="container">
       <SidebarBlocks @palette-drop="onPaletteDrop" />
       <WorkspaceArea
@@ -26,7 +26,7 @@
         @math-execute="onMathExecute"
       />
     </div>
-    
+
     <DraggableTerminal
       v-if="isTerminalVisible"
       :lines="terminalLines"
@@ -53,22 +53,22 @@ const blocks = ref([])
 const workspaceAreaRef = ref(null)
 const connections = ref([])
 const { variables, getVariableByName, upsertVariable } = useVariables()
-const { 
-  terminalLines, 
-  isTerminalVisible, 
+const {
+  terminalLines,
+  isTerminalVisible,
   terminalPosition,
-  addLine, 
-  clearTerminal, 
+  addLine,
+  clearTerminal,
   toggleTerminal,
-  updatePosition 
+  updatePosition
 } = useTerminal()
 
-const { 
+const {
   isExecuted,
-  saveInitialState, 
-  restoreInitialState, 
+  saveInitialState,
+  restoreInitialState,
   setExecuted,
-  resetExecution 
+  resetExecution
 } = useExecutionState()
 const updateVariableValue = (name, value) => {
   const variable = getVariableByName(name)
@@ -89,28 +89,28 @@ const updateVariableValue = (name, value) => {
   }, { deep: true, immediate: true })
 
 const addBlock = (newBlock) => {
-  
+
   const exists = blocks.value.some(b => b.id === newBlock.id)
   if (exists) {
     return
   }
-  
+
   blocks.value.push(newBlock)
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
 
-const updateBlockPosition = ({ 
-  id, x, y, variableName, variableType, variableValue, 
-  targetVariable, leftType, leftVariable, leftNumber, operator, 
-  rightType, rightVariable, rightNumber, selectedVariables, 
+const updateBlockPosition = ({
+  id, x, y, variableName, variableType, variableValue,
+  targetVariable, leftType, leftVariable, leftNumber, operator,
+  rightType, rightVariable, rightNumber, selectedVariables,
   comparator, savedVariables, leftIndex, rightIndex  // ← ДОБАВИТЬ СЮДА
 }) => {
-  console.log('📥 TestView updateBlockPosition:', { 
-    id, x, y, variableName, variableType, variableValue, 
-    targetVariable, leftVariable, rightVariable, selectedVariables, 
+  console.log('📥 TestView updateBlockPosition:', {
+    id, x, y, variableName, variableType, variableValue,
+    targetVariable, leftVariable, rightVariable, selectedVariables,
     comparator, savedVariables, leftIndex, rightIndex  // ← И В ЛОГИ
   })
-  
+
   const block = blocks.value.find((b) => b.id === id)
   if (block) {
     if (x !== undefined) block.x = Math.round(x)
@@ -171,9 +171,9 @@ const onMathExecute = ({ result, targetVariable }) => {
   }
 }
 const runExecution = () => {
-  
+
   addLine('--- Начало выполнения ---', 'output')
-  
+
   const startBlocks = blocks.value.filter(b => b.type === 'start')
   if (startBlocks.length === 0) {
     addLine('Ошибка: Не найден блок "Начать"', 'error')
@@ -181,7 +181,7 @@ const runExecution = () => {
   }
 
   saveInitialState(variables.value)
- 
+
   const { chains, reachableIds } = buildExecutionChains(blocks.value)
 
   const getVarValueByName = (name) => {
@@ -230,7 +230,7 @@ if (block.type === 'if') {
   const getValueWithIndex = (varName, index) => {
     const v = getVariableByName(varName)
     if (!v) return 0
-    
+
     if (v.type === 'array') {
       if (index === 'all') {
         return v.value[0] || 0
@@ -244,11 +244,11 @@ if (block.type === 'if') {
 
   let leftVal = 0
   let leftDisplay = ''
-  
+
   if (block.leftType === 'variable') {
     leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
     const v = getVariableByName(block.leftVariable)
-    
+
     if (v && v.type === 'array') {
       if (block.leftIndex === 'all') {
         leftDisplay = `${block.leftVariable}[0] (${leftVal})`
@@ -265,11 +265,11 @@ if (block.type === 'if') {
 
   let rightVal = 0
   let rightDisplay = ''
-  
+
   if (block.rightType === 'variable') {
     rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
     const v = getVariableByName(block.rightVariable)
-    
+
     if (v && v.type === 'array') {
       if (block.rightIndex === 'all') {
         rightDisplay = `${block.rightVariable}[0] (${rightVal})`
@@ -286,7 +286,7 @@ if (block.type === 'if') {
 
   let conditionMet = false
   const comparator = block.comparator || '=='
-  
+
   switch (comparator) {
     case '==': conditionMet = leftVal == rightVal; break
     case '!=': conditionMet = leftVal != rightVal; break
@@ -341,12 +341,12 @@ if (block.type === 'if') {
         }
 
         updateVariableValue(block.targetVariable, result)
-        
+
       }
 
       if (block.type === 'print') {
   const itemsToPrint = block.selectedVariables || []
-  
+
   if (itemsToPrint.length === 0) {
     addLine('Нет переменных для вывода', 'output')
   } else {
@@ -354,7 +354,7 @@ if (block.type === 'if') {
     for (const item of itemsToPrint) {
       const varName = item.name || item
       const v = getVariableByName(varName)
-      
+
       if (v) {
         if (v.type === 'array') {
           const index = item.index
@@ -375,7 +375,7 @@ if (block.type === 'if') {
 }
     }
   }
-  
+
   setExecuted()
   addLine('--- Выполнение завершено ---', 'output')
 }
@@ -392,7 +392,7 @@ const endExecution = () => {
 .test-page {
   width: 100%;
   height: 100vh;
-  background-color: #1e1e1e;
+  background-color: #1f1a2e;
   position: relative;
   overflow: hidden;
 }

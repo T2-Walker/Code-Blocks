@@ -3,38 +3,38 @@
     <div class="print-header">
       <span class="print-title">Написать</span>
     </div>
-    
+
     <div class="print-variables">
-      <div 
-        v-for="(item, index) in selectedVariables" 
+      <div
+        v-for="(item, index) in selectedVariables"
         :key="index"
         class="print-variable-row"
       >
- 
-        <select 
-          v-model="item.name" 
+
+        <select
+          v-model="item.name"
           class="print-variable-select"
           @change="onVariableChange(item)"
         >
           <option value="">Выберите переменную</option>
-        
+
           <optgroup label="Переменные">
             <option v-for="varItem in simpleVariables" :key="varItem.name" :value="varItem.name">
               {{ varItem.name }}
             </option>
           </optgroup>
-      
+
           <optgroup label="Массивы">
             <option v-for="varItem in arrayVariables" :key="varItem.name" :value="varItem.name">
               {{ varItem.name }} [{{ varItem.elementType }}[{{ varItem.size }}]]
             </option>
           </optgroup>
         </select>
-        
-  
-        <select 
+
+
+        <select
           v-if="item.isArray"
-          v-model="item.index" 
+          v-model="item.index"
           class="print-index-select"
           @change="emitUpdate"
         >
@@ -43,8 +43,8 @@
             [{{ i-1 }}]
           </option>
         </select>
-        
-        <button 
+
+        <button
           v-if="selectedVariables.length > 1"
           class="print-remove-btn"
           @click.stop="removeVariable(index)"
@@ -53,13 +53,13 @@
         </button>
       </div>
     </div>
-    
+
     <div class="print-add-row">
       <button class="print-add-btn" @click.stop="addVariable">
         <span class="plus-icon">+</span> Добавить переменную
       </button>
     </div>
-    
+
     <div class="print-preview" v-if="previewItems.length > 0">
       <span class="preview-label">Вывод:</span>
       <div class="preview-values">
@@ -114,11 +114,11 @@ const allowedVariables = computed(() => {
   return allVariables.value.filter(v => nameSet.has(v.name))
 })
 
-const simpleVariables = computed(() => 
+const simpleVariables = computed(() =>
   allowedVariables.value.filter(v => v.type !== 'array')
 )
 
-const arrayVariables = computed(() => 
+const arrayVariables = computed(() =>
   allowedVariables.value.filter(v => v.type === 'array')
 )
 
@@ -139,13 +139,13 @@ const onVariableChange = (item) => {
 
 const previewItems = computed(() => {
   const result = []
-  
+
   for (const item of selectedVariables.value) {
     if (!item.name) continue
-    
+
     const variable = getVariableByName(item.name)
     if (!variable) continue
-    
+
     if (variable.type === 'array') {
       if (item.index === 'all') {
         result.push(`${variable.name} = [${variable.value.join(', ')}]`)
@@ -163,7 +163,7 @@ const previewItems = computed(() => {
       }
     }
   }
-  
+
   return result
 })
 
@@ -180,7 +180,7 @@ const removeVariable = (index) => {
 watch(allowedNames, (names) => {
   const set = new Set(names)
   let changed = false
-  
+
   selectedVariables.value.forEach(item => {
     if (item.name && !set.has(item.name)) {
       item.name = ''
@@ -190,14 +190,14 @@ watch(allowedNames, (names) => {
       changed = true
     }
   })
-  
+
   if (changed) {
     emitUpdate()
   }
 }, { immediate: true })
 watch(allVariables, () => {
   let changed = false
-  
+
   selectedVariables.value.forEach(item => {
     if (item.name) {
       const variable = getVariableByName(item.name)
@@ -209,7 +209,7 @@ watch(allVariables, () => {
       }
     }
   })
-  
+
   if (changed) {
     emitUpdate()
   }
@@ -225,7 +225,7 @@ const emitUpdate = () => {
       arraySize: item.arraySize
     }))
   }
-  
+
   console.log('📤 PrintBlock emitUpdate:', updateData)
   emit('update-block', updateData)
 }

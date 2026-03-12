@@ -2,15 +2,15 @@
   <div class="if-content">
     <div class="if-row if-condition-row">
       <span class="if-keyword">if</span>
-      
+
       <select v-model="leftType" class="if-type-select" @change="onLeftTypeChange">
         <option value="variable">Переменная</option>
         <option value="number">Число</option>
       </select>
-      
-      <select 
-        v-if="leftType === 'variable'" 
-        v-model="leftVariable" 
+
+      <select
+        v-if="leftType === 'variable'"
+        v-model="leftVariable"
         class="if-variable-select"
         @change="onLeftVariableChange"
       >
@@ -26,10 +26,10 @@
           </option>
         </optgroup>
       </select>
-      
-      <select 
+
+      <select
         v-if="leftIsArray"
-        v-model="leftIndex" 
+        v-model="leftIndex"
         class="if-index-select"
         @change="emitUpdate"
       >
@@ -38,7 +38,7 @@
           [{{ i-1 }}]
         </option>
       </select>
-      
+
       <input
         v-else-if="leftType === 'number'"
         v-model.number="leftNumber"
@@ -61,10 +61,10 @@
         <option value="variable">Переменная</option>
         <option value="number">Число</option>
       </select>
-      
-      <select 
-        v-if="rightType === 'variable'" 
-        v-model="rightVariable" 
+
+      <select
+        v-if="rightType === 'variable'"
+        v-model="rightVariable"
         class="if-variable-select"
         @change="onRightVariableChange"
       >
@@ -80,10 +80,10 @@
           </option>
         </optgroup>
       </select>
-      
-      <select 
+
+      <select
         v-if="rightIsArray"
-        v-model="rightIndex" 
+        v-model="rightIndex"
         class="if-index-select"
         @change="emitUpdate"
       >
@@ -92,7 +92,7 @@
           [{{ i-1 }}]
         </option>
       </select>
-      
+
       <input
         v-else-if="rightType === 'number'"
         v-model.number="rightNumber"
@@ -150,11 +150,11 @@ const allowedNames = computed(() => {
 
 const allVariables = computed(() => variables.value || [])
 
-const simpleVariables = computed(() => 
+const simpleVariables = computed(() =>
   allVariables.value.filter(v => v.type !== 'array' && allowedNames.value.includes(v.name))
 )
 
-const arrayVariables = computed(() => 
+const arrayVariables = computed(() =>
   allVariables.value.filter(v => v.type === 'array' && allowedNames.value.includes(v.name))
 )
 
@@ -203,10 +203,10 @@ const rightArraySize = computed(() => {
 
 const getLeftValue = () => {
   if (leftType.value === 'number') return leftNumber.value
-  
+
   const varObj = getVariableByName(leftVariable.value)
   if (!varObj) return 0
-  
+
   // Для массива
   if (varObj.type === 'array') {
     if (leftIndex.value === 'all') {
@@ -217,17 +217,17 @@ const getLeftValue = () => {
       return varObj.value[idx] || 0
     }
   }
-  
+
   // Для обычной переменной
   return varObj.value
 }
 
 const getRightValue = () => {
   if (rightType.value === 'number') return rightNumber.value
-  
+
   const varObj = getVariableByName(rightVariable.value)
   if (!varObj) return 0
-  
+
   if (varObj.type === 'array') {
     if (rightIndex.value === 'all') {
       return varObj.value[0] || 0
@@ -242,7 +242,7 @@ const getRightValue = () => {
 const conditionResult = computed(() => {
   const leftVal = getLeftValue()
   const rightVal = getRightValue()
-  
+
   switch (comparator.value) {
     case '==': return leftVal == rightVal
     case '!=': return leftVal != rightVal
@@ -259,7 +259,7 @@ const conditionExpression = computed(() => {
   let right = rightType.value === 'variable' ? rightVariable.value : rightNumber.value
   let leftVal = getLeftValue()
   let rightVal = getRightValue()
-  
+
   if (leftIsArray.value && leftIndex.value !== 'all') {
     left = `${leftVariable.value}[${leftIndex.value}] (${leftVal})`
   } else if (leftIsArray.value) {
@@ -267,7 +267,7 @@ const conditionExpression = computed(() => {
   } else if (leftType.value === 'variable') {
     left = `${leftVariable.value} (${leftVal})`
   }
-  
+
   if (rightIsArray.value && rightIndex.value !== 'all') {
     right = `${rightVariable.value}[${rightIndex.value}] (${rightVal})`
   } else if (rightIsArray.value) {
@@ -275,7 +275,7 @@ const conditionExpression = computed(() => {
   } else if (rightType.value === 'variable') {
     right = `${rightVariable.value} (${rightVal})`
   }
-  
+
   return `${left} ${comparator.value} ${right}`
 })
 
@@ -300,7 +300,7 @@ const emitUpdate = () => {
     rightIndex: rightIndex.value,
     rightNumber: rightNumber.value,
   }
-  
+
   console.log('📤 IfBlock emitUpdate:', updateData)
   emit('update-block', updateData)
 }

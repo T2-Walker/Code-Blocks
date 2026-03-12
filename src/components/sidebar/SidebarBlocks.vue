@@ -64,17 +64,17 @@ const onPaletteDrop = (payload) => {
 <style scoped>
 .sidebar {
   width: 280px;
-  background-color: #2d2d2d;
-  color: white;
+  background-color: #160e2c;
+  color: #ffffff;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  border-right: 1px solid #3d3d3d;
+  border-right: 1px solid #1e123e;
 }
 
 .sidebar h3 {
   padding: 20px;
   margin: 0;
-  border-bottom: 1px solid #3d3d3d;
+  border-bottom: 1px solid #1e123e;
 }
 </style>
