@@ -8,7 +8,6 @@
     @mouseup="onWorkspaceMouseUp"
     @mouseleave="onWorkspaceMouseLeave"
   >
-    <!-- ЛИНИИ ВНЕ КОНТЕЙНЕРА -->
     <svg class="connection-lines">
       <g v-for="conn in connections" :key="conn.id" class="connection-group">
         <line
@@ -57,8 +56,6 @@
         stroke-linecap="round"
       />
     </svg>
-
-    <!-- Контейнер с блоками -->
     <div
       class="workspace-container"
       :style="{
@@ -87,6 +84,7 @@
         @delete="deleteBlock"
         @start-connection="startConnection"
         @update-block="handleBlockUpdate"
+        @math-execute="onMathExecute"
       />
     </div>
   </div>
@@ -119,6 +117,7 @@ const emit = defineEmits([
   'update-variable',
   'connection-created',
   'connection-deleted',
+  'math-execute',
 ])
 
 const { addLine } = useTerminal()
@@ -129,17 +128,22 @@ const sourceBlockId = ref(null)
 const tempLine = ref(null)
 const onMouseMoveRef = ref(null)
 
-// ========== ПЕРЕТАСКИВАНИЕ РАБОЧЕЙ ОБЛАСТИ ==========
 const isPanning = ref(false)
 const panStart = ref({ x: 0, y: 0 })
 const panOffset = ref({ x: 0, y: 0 })
 const lastMousePos = ref({ x: 0, y: 0 })
 
-// Границы перетаскивания
 const maxPanX = computed(() => 2000)
 const maxPanY = computed(() => 2000)
 const minPanX = computed(() => -2000)
 const minPanY = computed(() => -2000)
+
+
+const onMathExecute = (data) => {
+  console.log('WorkspaceArea onMathExecute:', data)
+  emit('math-execute', data)
+}
+  
 
 const onWorkspaceMouseDown = (e) => {
   if (
@@ -194,12 +198,10 @@ const onWorkspaceMouseLeave = () => {
   }
 }
 
-// Сброс позиции
 const resetPan = () => {
   panOffset.value = { x: 0, y: 0 }
 }
 
-// Обновляем bounds с учетом смещения
 const bounds = computed(() => {
   if (!workspaceRef.value) return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
   const rect = workspaceRef.value.getBoundingClientRect()
@@ -210,7 +212,6 @@ const bounds = computed(() => {
     maxY: rect.height - 50 - panOffset.value.y,
   }
 })
-// ========== КОНЕЦ ПЕРЕТАСКИВАНИЯ ==========
 
 const getLinePosition = (fromId, toId) => {
   const fromBlock = props.blocks.find((b) => b.id === fromId)
