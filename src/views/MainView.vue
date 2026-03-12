@@ -24,14 +24,17 @@ const goToTest = () => {
 
 <style scoped>
 .main {
-  width: 92%;
-  height: 450px;
-  background-color: #496db8;
-  margin: 50px auto;
+  width: 30%; /* размеры самой страницы (блока) */
+  height: 200px;
+  background: linear-gradient(135deg, rgba(149, 13, 88, 0.5), rgba(43, 43, 151, 0.5));
+
+
+  margin: 150px auto;
   text-decoration: none;
   color: white;
-  border-radius: 0;
+  border-radius: 1000px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -40,7 +43,7 @@ const goToTest = () => {
 }
 .main_button {
   background-color: #000000;
-  color: white;
+  color: rgb(255, 255, 255);
   border-color: black;
 }
 
@@ -54,7 +57,7 @@ const goToTest = () => {
   font-weight: bold;
   cursor: pointer;
   margin-top: 20px;
-
+  font-family: 'evolventa', Arial, sans-serif;
   transition: all 0.3s ease;
 }
 /*анимация при наведении*/

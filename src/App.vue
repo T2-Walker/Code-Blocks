@@ -18,6 +18,12 @@ import Footer from '@/components/Footer.vue'
   display: flex;
   flex-direction: column;
   background-color: #264b91;
+  background-image: url('https://s10.iimage.su/s/09/gdxI2bQxa5m1zhPzRjTXK9tbFz1HdNPzoF2guowh1.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Остальные твои стили для main, если есть */
+  /* Например */
   min-height: 100vh;
   width: 100%;
 }

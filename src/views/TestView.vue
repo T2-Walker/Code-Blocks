@@ -116,6 +116,8 @@ const updateBlockPosition = (data) => {
     if (data.selectedVariables !== undefined) block.selectedVariables = data.selectedVariables
     if (data.comparator !== undefined) block.comparator = data.comparator
     if (data.savedVariables !== undefined) block.savedVariables = data.savedVariables
+    if (data.leftIndex !== undefined) block.leftIndex = data.leftIndex
+    if (data.rightIndex !== undefined) block.rightIndex = data.rightIndex
   }
 }
 const updateVariableBlock = ({ id, variableName, variableType, variableValue }) => {
@@ -212,39 +214,76 @@ const runExecution = (initialContext = null) => {
           currentVariables[block.variableName] = block.variableValue ?? 0
         }
       }
+if (block.type === 'if') {
+  console.log('🔍 IF block data:', {
+    leftType: block.leftType,
+    leftVariable: block.leftVariable,
+    leftIndex: block.leftIndex,
+    leftNumber: block.leftNumber,
+    comparator: block.comparator,
+    rightType: block.rightType,
+    rightVariable: block.rightVariable,
+    rightIndex: block.rightIndex,
+    rightNumber: block.rightNumber
+  })
 
-      if (block.type === 'if') {
-        console.log(' IF block data:', {
-          leftType: block.leftType,
-          leftVariable: block.leftVariable,
-          leftNumber: block.leftNumber,
-          comparator: block.comparator,
-          rightType: block.rightType,
-          rightVariable: block.rightVariable,
-          rightNumber: block.rightNumber,
-        })
 
-        let leftVal = 0
-        let leftDisplay = ''
-        if (block.leftType === 'variable') {
-          const v = getVarValueByName(block.leftVariable)
-          leftVal = typeof v === 'number' ? v : 0
-          leftDisplay = `${block.leftVariable} (${leftVal})`
-        } else {
-          leftVal = block.leftNumber || 0
-          leftDisplay = String(leftVal)
-        }
+  const getValueWithIndex = (varName, index) => {
+    const v = getVariableByName(varName)
+    if (!v) return 0
+    
+    if (v.type === 'array') {
+      if (index === 'all') {
+        return v.value[0] || 0
+      } else {
+        const idx = parseInt(index)
+        return v.value[idx] || 0
+      }
+    }
+    return v.value
+  }
 
-        let rightVal = 0
-        let rightDisplay = ''
-        if (block.rightType === 'variable') {
-          const v = getVarValueByName(block.rightVariable)
-          rightVal = typeof v === 'number' ? v : 0
-          rightDisplay = `${block.rightVariable} (${rightVal})`
-        } else {
-          rightVal = block.rightNumber || 0
-          rightDisplay = String(rightVal)
-        }
+  let leftVal = 0
+  let leftDisplay = ''
+  
+  if (block.leftType === 'variable') {
+    leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
+    const v = getVariableByName(block.leftVariable)
+    
+    if (v && v.type === 'array') {
+      if (block.leftIndex === 'all') {
+        leftDisplay = `${block.leftVariable}[0] (${leftVal})`
+      } else {
+        leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
+      }
+    } else {
+      leftDisplay = `${block.leftVariable} (${leftVal})`
+    }
+  } else {
+    leftVal = block.leftNumber || 0
+    leftDisplay = String(leftVal)
+  }
+
+  let rightVal = 0
+  let rightDisplay = ''
+  
+  if (block.rightType === 'variable') {
+    rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
+    const v = getVariableByName(block.rightVariable)
+    
+    if (v && v.type === 'array') {
+      if (block.rightIndex === 'all') {
+        rightDisplay = `${block.rightVariable}[0] (${rightVal})`
+      } else {
+        rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
+      }
+    } else {
+      rightDisplay = `${block.rightVariable} (${rightVal})`
+    }
+  } else {
+    rightVal = block.rightNumber || 0
+    rightDisplay = String(rightVal)
+  }
 
         let conditionMet = false
         const comparator = block.comparator || '=='
@@ -365,24 +404,33 @@ const runExecution = (initialContext = null) => {
       }
 
       if (block.type === 'print') {
-        const varsToPrint = block.selectedVariables || []
-
-        const isThenBranch = initialContext?.startId !== undefined
-        const prefix = isThenBranch ? '[then] ' : ''
-
-        if (varsToPrint.length === 0) {
-          addLine('Нет переменных для вывода', 'output')
-        } else {
-          addLine('Вывод:', 'output')
-          for (const varName of varsToPrint) {
-            const value = currentVariables[varName]
-            if (value !== undefined) {
-              addLine(`  ${prefix}${varName} = ${value}`, 'print')
-            } else {
-              addLine(`  ${varName} = (переменная не найдена)`, 'error')
-            }
+  const itemsToPrint = block.selectedVariables || []
+  
+  const isThenBranch = initialContext?.startId !== undefined
+  const prefix = isThenBranch ? '[then] ' : ''
+  
+  if (itemsToPrint.length === 0) {
+    addLine('Нет переменных для вывода', 'output')
+  } else {
+    addLine('Вывод:', 'output')
+    for (const item of itemsToPrint) {
+      const varName = item.name || item
+      const v = getVariableByName(varName)
+      
+      if (v) {
+        if (v.type === 'array') {
+          const index = item.index
+          if (index === 'all') {
+            addLine(`  ${v.name} = [${v.value.join(', ')}]`, 'print')
+          } else {
+            const idx = parseInt(index)
+            addLine(`  ${v.name}[${idx}] = ${v.value[idx]}`, 'print')
           }
+        } else {
+          addLine(`  ${v.name} = ${v.value}`, 'print')
         }
+      } else {
+        addLine(`  ${varName} = (переменная не найдена)`, 'error')
       }
     }
   }
