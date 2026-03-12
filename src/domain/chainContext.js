@@ -1,6 +1,6 @@
 export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetBlockId) {
   console.log(' ChainContext for block:', targetBlockId)
-  
+
   const byId = new Map(blocks.map((b) => [b.id, b]))
 
   const prevMap = new Map()
@@ -42,14 +42,14 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
 
   const names = []
   const seen = new Set()
-  
+
   for (const id of pathToStart) {
     const b = byId.get(id)
     if (!b) continue
 
     console.log('Processing block:', b.type, b.id)
 
-  
+
     if (b.type === 'variable') {
       if (b.savedVariables && Array.isArray(b.savedVariables)) {
         b.savedVariables.forEach(v => {
@@ -60,7 +60,7 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
           }
         })
       } else if (b.variableName) {
-   
+
         if (!seen.has(b.variableName)) {
           seen.add(b.variableName)
           names.push(b.variableName)
@@ -75,6 +75,11 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
         names.push(b.targetVariable)
         console.log(' Found math target:', b.targetVariable)
       }
+    }
+
+    if (id === targetBlockId) {
+      console.log(' Reached target block, stopping')
+      break
     }
   }
 

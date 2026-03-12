@@ -242,7 +242,7 @@ const getRightValue = () => {
 const conditionResult = computed(() => {
   const leftVal = getLeftValue()
   const rightVal = getRightValue()
-  
+
   switch (comparator.value) {
     case '==': return leftVal == rightVal
     case '!=': return leftVal != rightVal
@@ -300,8 +300,9 @@ const emitUpdate = () => {
     rightIndex: rightIndex.value,
     rightNumber: rightNumber.value,
   }
-  
+
   console.log('📤 IfBlock emitUpdate:', updateData)
+
   emit('update-block', updateData)
 }
 

@@ -1,13 +1,17 @@
 let connections = []
 let nextId = 1
 
-export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, allBlocks) {
+export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, allBlocks, connectionType = 'normal') {
   if (!sourceBlock || !targetBlock) {
     return { allowed: false, reason: 'Блок не существует' }
   }
 
   if (sourceBlock.id === targetBlock.id) {
     return { allowed: false, reason: 'Нельзя соединить блок с самим собой' }
+  }
+
+  if (connectionType.value === 'then' && sourceBlock.type !== 'if') {
+    return { allowed: false, reason: 'Then-связи можно создавать только от блока Условие' }
   }
 
   const exists = currentConnections.some(
@@ -32,6 +36,20 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
         allowed: false,
         reason: 'От блока "Начать" может идти только одна исходящая связь',
       }
+    }
+  } else if (sourceBlock.type === 'if') {
+    const existingNormal = currentConnections.some(
+      conn => conn.from === sourceBlock.id && conn.type === 'normal'
+    )
+    const existingThen = currentConnections.some(
+      conn => conn.from === sourceBlock.id && conn.type === 'then'
+    )
+
+    if (connectionType === 'normal' && existingNormal) {
+      return { allowed: false, reason: 'У блока If может быть только одна обычная связь' }
+    }
+    if (connectionType === 'then' && existingThen) {
+      return { allowed: false, reason: 'У блока If может быть только одна then-связь' }
     }
   } else if ((outgoingCount[sourceBlock.id] || 0) >= 1) {
     return {
@@ -103,7 +121,7 @@ function checkCycle(sourceId, targetId, conns) {
   return false
 }
 
-export function createConnection(fromBlockId, toBlockId) {
+export function createConnection(fromBlockId, toBlockId, type = 'normal') {
   const exists = connections.some(
     (conn) =>
       (conn.from === fromBlockId && conn.to === toBlockId) ||
@@ -117,6 +135,7 @@ export function createConnection(fromBlockId, toBlockId) {
     from: fromBlockId,
     to: toBlockId,
     createdAt: Date.now(),
+    type: type,
   }
 
   connections.push(connection)
