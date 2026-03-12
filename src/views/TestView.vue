@@ -67,6 +67,7 @@ const { isExecuted, saveInitialState, restoreInitialState, setExecuted, resetExe
   useExecutionState()
 const updateVariableValue = (name, value) => {
   const variable = getVariableByName(name)
+  
   if (variable) {
     upsertVariable({
       oldName: name,
@@ -77,9 +78,7 @@ const updateVariableValue = (name, value) => {
   }
 }
 
-watch(
-  variables,
-  (newVars) => {
+watch(variables, (newVars) => {
     if (!isExecuted.value) {
       saveInitialState(newVars)
     }
@@ -119,42 +118,98 @@ const updateBlockPosition = (data) => {
     if (data.leftIndex !== undefined) block.leftIndex = data.leftIndex
     if (data.rightIndex !== undefined) block.rightIndex = data.rightIndex
   }
-}
-const updateVariableBlock = ({ id, variableName, variableType, variableValue }) => {
-  const block = blocks.value.find((b) => b.id === id)
-  if (block) {
-    block.variableName = variableName
-    block.variableType = variableType
-    block.variableValue = variableValue
+  const updateVariableBlock = ({ id, variableName, variableType, variableValue }) => {
+    const block = blocks.value.find((b) => b.id === id)
+    if (block) {
+      block.variableName = variableName
+      block.variableType = variableType
+      block.variableValue = variableValue
+    }
   }
-}
 
-const deleteBlock = (blockId) => {
-  const block = blocks.value.find((b) => b.id === blockId)
-  const blockName = block ? block.variableName || block.name : 'блок'
-  blocks.value = blocks.value.filter((b) => b.id !== blockId)
-  connections.value = getAllConnections()
-  addLine(`Удален блок: ${blockName}`, 'output')
-}
-
-const onConnectionCreated = () => {
-  connections.value = getAllConnections()
-}
-
-const onConnectionDeleted = () => {
-  connections.value = getAllConnections()
-}
-
-const onPaletteDrop = (payload) => {
-  if (workspaceAreaRef.value && workspaceAreaRef.value.handlePaletteDrop) {
-    workspaceAreaRef.value.handlePaletteDrop(payload)
+  const deleteBlock = (blockId) => {
+    const block = blocks.value.find((b) => b.id === blockId)
+    const blockName = block ? (block.variableName || block.name) : 'блок'
+    blocks.value = blocks.value.filter((b) => b.id !== blockId)
+    connections.value = getAllConnections()
+    addLine(`Удален блок: ${blockName}`, 'output')
   }
-}
 
-const onMathExecute = ({ result, targetVariable }) => {
-  console.log('TestView onMathExecute:', { result, targetVariable })
-  if (targetVariable && isExecuted.value) {
-    updateVariableValue(targetVariable, result)
+  const onConnectionCreated = () => {
+    connections.value = getAllConnections()
+  }
+
+  const onConnectionDeleted = () => {
+    connections.value = getAllConnections()
+  }
+
+  const onPaletteDrop = (payload) => {
+    if (workspaceAreaRef.value && workspaceAreaRef.value.handlePaletteDrop) {
+      workspaceAreaRef.value.handlePaletteDrop(payload)
+    }
+  }
+
+const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => {
+  console.log('🔥 TestView onMathExecute ПОЛУЧИЛ:', { result, targetVariable, targetArray, targetIndex })
+  
+  if (targetArray) {
+    const arrayVar = getVariableByName(targetArray)
+    console.log('📦 Найден массив:', arrayVar)
+    
+    if (arrayVar && arrayVar.type === 'array') {
+      const newArray = [...arrayVar.value]
+      newArray[targetIndex] = result
+      
+      upsertVariable({
+        oldName: targetArray,
+        name: targetArray,
+        type: 'array',
+        elementType: arrayVar.elementType,
+        size: arrayVar.size,
+        value: newArray
+      })
+      console.log('✅ upsertVariable для массива выполнен')
+      
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetArray)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = newArray
+          }
+        }
+        return block
+      })
+      
+      addLine(`📝 ${targetArray}[${targetIndex}] = ${result}`, 'print')
+    }
+  } else if (targetVariable) {
+    console.log(`🎯 Обновляем переменную: ${targetVariable} = ${result}`)
+    
+    // ВРЕМЕННО: прямое обновление без updateVariableValue
+    const variable = getVariableByName(targetVariable)
+    console.log('📦 Найденная переменная:', variable)
+    
+    if (variable) {
+      upsertVariable({
+        oldName: targetVariable,
+        name: targetVariable,
+        type: variable.type,
+        value: result
+      })
+      console.log('✅ upsertVariable выполнен')
+      
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetVariable)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = result
+          }
+        }
+        return block
+      })
+      
+      addLine(`📝 ${targetVariable} = ${result}`, 'print')
+    }
   }
 }
 const runExecution = (initialContext = null) => {
@@ -186,20 +241,20 @@ const runExecution = (initialContext = null) => {
     return currentVariables[name]
   }
 
-  for (const chain of chains) {
-    const knownVarsSet = new Set()
-    const varsOrder = []
+    for (const chain of chains) {
+      const knownVarsSet = new Set()
+      const varsOrder = []
 
-    const touchVar = (name) => {
-      if (!name) return
-      if (!knownVarsSet.has(name)) {
-        knownVarsSet.add(name)
-        varsOrder.push(name)
+      const touchVar = (name) => {
+        if (!name) return
+        if (!knownVarsSet.has(name)) {
+          knownVarsSet.add(name)
+          varsOrder.push(name)
+        }
       }
-    }
 
-    for (const block of chain) {
-      if (!reachableIds.has(block.id)) continue
+      for (const block of chain) {
+        if (!reachableIds.has(block.id)) continue
 
       if (block.type === 'variable') {
         if (block.savedVariables && Array.isArray(block.savedVariables)) {
@@ -214,76 +269,50 @@ const runExecution = (initialContext = null) => {
           currentVariables[block.variableName] = block.variableValue ?? 0
         }
       }
-if (block.type === 'if') {
-  console.log('🔍 IF block data:', {
-    leftType: block.leftType,
-    leftVariable: block.leftVariable,
-    leftIndex: block.leftIndex,
-    leftNumber: block.leftNumber,
-    comparator: block.comparator,
-    rightType: block.rightType,
-    rightVariable: block.rightVariable,
-    rightIndex: block.rightIndex,
-    rightNumber: block.rightNumber
-  })
-
-
-  const getValueWithIndex = (varName, index) => {
-    const v = getVariableByName(varName)
-    if (!v) return 0
-    
-    if (v.type === 'array') {
-      if (index === 'all') {
-        return v.value[0] || 0
-      } else {
-        const idx = parseInt(index)
-        return v.value[idx] || 0
-      }
+      return v.value
     }
-    return v.value
-  }
 
-  let leftVal = 0
-  let leftDisplay = ''
-  
-  if (block.leftType === 'variable') {
-    leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
-    const v = getVariableByName(block.leftVariable)
+    let leftVal = 0
+    let leftDisplay = ''
     
-    if (v && v.type === 'array') {
-      if (block.leftIndex === 'all') {
-        leftDisplay = `${block.leftVariable}[0] (${leftVal})`
+    if (block.leftType === 'variable') {
+      leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
+      const v = getVariableByName(block.leftVariable)
+      
+      if (v && v.type === 'array') {
+        if (block.leftIndex === 'all') {
+          leftDisplay = `${block.leftVariable}[0] (${leftVal})`
+        } else {
+          leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
+        }
       } else {
-        leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
+        leftDisplay = `${block.leftVariable} (${leftVal})`
       }
     } else {
-      leftDisplay = `${block.leftVariable} (${leftVal})`
+      leftVal = block.leftNumber || 0
+      leftDisplay = String(leftVal)
     }
-  } else {
-    leftVal = block.leftNumber || 0
-    leftDisplay = String(leftVal)
-  }
 
-  let rightVal = 0
-  let rightDisplay = ''
-  
-  if (block.rightType === 'variable') {
-    rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
-    const v = getVariableByName(block.rightVariable)
+    let rightVal = 0
+    let rightDisplay = ''
     
-    if (v && v.type === 'array') {
-      if (block.rightIndex === 'all') {
-        rightDisplay = `${block.rightVariable}[0] (${rightVal})`
+    if (block.rightType === 'variable') {
+      rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
+      const v = getVariableByName(block.rightVariable)
+      
+      if (v && v.type === 'array') {
+        if (block.rightIndex === 'all') {
+          rightDisplay = `${block.rightVariable}[0] (${rightVal})`
+        } else {
+          rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
+        }
       } else {
-        rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
+        rightDisplay = `${block.rightVariable} (${rightVal})`
       }
     } else {
-      rightDisplay = `${block.rightVariable} (${rightVal})`
+      rightVal = block.rightNumber || 0
+      rightDisplay = String(rightVal)
     }
-  } else {
-    rightVal = block.rightNumber || 0
-    rightDisplay = String(rightVal)
-  }
 
         let conditionMet = false
         const comparator = block.comparator || '=='
@@ -423,14 +452,11 @@ if (block.type === 'if') {
           if (index === 'all') {
             addLine(`  ${v.name} = [${v.value.join(', ')}]`, 'print')
           } else {
-            const idx = parseInt(index)
-            addLine(`  ${v.name}[${idx}] = ${v.value[idx]}`, 'print')
+            addLine(`  ${v.name} = ${v.value}`, 'print')
           }
         } else {
-          addLine(`  ${v.name} = ${v.value}`, 'print')
+          addLine(`  ${varName} = (переменная не найдена)`, 'error')
         }
-      } else {
-        addLine(`  ${varName} = (переменная не найдена)`, 'error')
       }
     }
   }
@@ -461,104 +487,104 @@ const endExecution = () => {
   overflow: hidden;
 }
 
-.button-container {
-  position: absolute;
-  top: 20px;
-  right: 30px;
-  display: flex;
-  gap: 15px;
-  z-index: 1000;
-}
+  .button-container {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    display: flex;
+    gap: 15px;
+    z-index: 1000;
+  }
 
-.run-btn {
-  background: #ff9800;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 25px;
-  cursor: pointer;
-  font-weight: bold;
-  min-width: 120px;
-}
+  .run-btn {
+    background: #ff9800;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 25px;
+    cursor: pointer;
+    font-weight: bold;
+    min-width: 120px;
+  }
 
-.run-btn:hover {
-  background: #f57c00;
-}
+  .run-btn:hover {
+    background: #f57c00;
+  }
 
-.end-btn {
-  background: #f44336;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 25px;
-  cursor: pointer;
-  font-weight: bold;
-  min-width: 100px;
-}
+  .end-btn {
+    background: #f44336;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 25px;
+    cursor: pointer;
+    font-weight: bold;
+    min-width: 100px;
+  }
 
-.end-btn:hover:not(:disabled) {
-  background: #d32f2f;
-}
+  .end-btn:hover:not(:disabled) {
+    background: #d32f2f;
+  }
 
-.end-btn:disabled {
-  background: #666;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
+  .end-btn:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
 
-.back-btn {
-  background: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 25px;
-  cursor: pointer;
-  font-weight: bold;
-  min-width: 100px;
-}
+  .back-btn {
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 25px;
+    cursor: pointer;
+    font-weight: bold;
+    min-width: 100px;
+  }
 
-.back-btn:hover {
-  background: #45a049;
-}
+  .back-btn:hover {
+    background: #45a049;
+  }
 
-.terminal-toggle {
-  position: absolute;
-  bottom: 20px;
-  right: 30px;
-  background: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 15px;
-  cursor: pointer;
-  z-index: 1000;
-  font-size: 16px;
-}
+  .terminal-toggle {
+    position: absolute;
+    bottom: 20px;
+    right: 30px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    z-index: 1000;
+    font-size: 16px;
+  }
 
-.terminal-toggle:hover {
-  background: #45a049;
-}
+  .terminal-toggle:hover {
+    background: #45a049;
+  }
 
-.container {
-  display: flex;
-  height: 100vh;
-}
+  .container {
+    display: flex;
+    height: 100vh;
+  }
 
-.debug-btn {
-  position: absolute;
-  top: 20px;
-  left: 30px;
-  background: #2196f3;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 15px;
-  cursor: pointer;
-  z-index: 1000;
-  font-weight: bold;
-}
+  .debug-btn {
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 15px;
+    cursor: pointer;
+    z-index: 1000;
+    font-weight: bold;
+  }
 
-.debug-btn:hover {
-  background: #1976d2;
-}
-</style>
+  .debug-btn:hover {
+    background: #1976D2;
+  }
+  </style>
