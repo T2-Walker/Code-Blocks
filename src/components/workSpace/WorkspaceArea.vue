@@ -16,7 +16,7 @@
           :y1="getLinePosition(conn.from, conn.to).y1 + panOffset.y"
           :x2="getLinePosition(conn.from, conn.to).x2 + panOffset.x"
           :y2="getLinePosition(conn.from, conn.to).y2 + panOffset.y"
-          stroke="#4CAF50"
+          :stroke="conn.type === 'then' ? '#FFA500' : '#4CAF50'"
           stroke-width="3"
           stroke-linecap="round"
         />
@@ -45,13 +45,14 @@
         </foreignObject>
       </g>
 
+      <!-- временная пунктирная линия -->
       <line
         v-if="isConnecting && tempLine"
         :x1="tempLine.x1 + panOffset.x"
         :y1="tempLine.y1 + panOffset.y"
         :x2="tempLine.x2 + panOffset.x"
         :y2="tempLine.y2 + panOffset.y"
-        stroke="#ff9800"
+        :stroke="connectionType === 'then' ? '#FF1493' : '#FFA500'"
         stroke-width="3"
         stroke-dasharray="5,5"
         stroke-linecap="round"
@@ -66,12 +67,7 @@
         transition: isPanning ? 'none' : 'transform 0.1s ease',
       }"
     >
-      <GridBackground
-        :min-x="minPanX"
-        :min-y="minPanY"
-        :max-x="maxPanX"
-        :max-y="maxPanY"
-      />
+      <GridBackground :min-x="minPanX" :min-y="minPanY" :max-x="maxPanX" :max-y="maxPanY" />
 
       <WorkspaceBlock
         v-for="block in blocks"
@@ -126,6 +122,8 @@ const workspaceRef = ref(null)
 const draggingId = ref(null)
 const isConnecting = ref(false)
 const sourceBlockId = ref(null)
+const sourceBlockType = ref(null)
+const sourceConnectionType = ref(null)
 const tempLine = ref(null)
 const onMouseMoveRef = ref(null)
 
@@ -246,12 +244,15 @@ const handleBlockUpdate = (blockData) => {
   emit('update-block', blockData)
 }
 
-const startConnection = (blockId) => {
+const startConnection = ({ blockId, blockType, connectionType }) => {
   if (isConnecting.value) cancelConnection()
+
+  addLine('Начато проведение линии')
 
   isConnecting.value = true
   sourceBlockId.value = blockId
-
+  sourceBlockType.value = blockType
+  sourceConnectionType.value = connectionType
   const sourceBlock = props.blocks.find((b) => b.id === blockId)
 
   const onMouseMove = (e) => {
@@ -294,6 +295,7 @@ const completeConnection = (targetBlockId) => {
     targetBlock,
     props.connections || [],
     props.blocks || [],
+    sourceConnectionType.value,
   )
   if (!check.allowed) {
     addLine(`❌ ${check.reason}`, 'error')
@@ -301,7 +303,11 @@ const completeConnection = (targetBlockId) => {
     return
   }
 
-  const newConnection = createConnection(sourceBlockId.value, targetBlockId)
+  const newConnection = createConnection(
+    sourceBlockId.value,
+    targetBlockId,
+    sourceConnectionType.value,
+  )
   if (newConnection) {
     emit('connection-created')
     addLine(`Создана связь между блоками`, 'success')
@@ -399,7 +405,7 @@ onUnmounted(() => cancelConnection())
 
 .workspace-container {
   position: relative;
-  width: 2px;    /* тут жесточайший костыль */
+  width: 2px; /* тут жесточайший костыль */
   height: 2px;
   transform-origin: 0 0;
   will-change: transform;

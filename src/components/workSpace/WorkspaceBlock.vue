@@ -89,6 +89,16 @@
     <!-- Кнопка соединения -->
     <button class="connect-btn" @click.stop="startConnection" @pointerdown.stop>🔗</button>
 
+    <button
+      v-if="block.type === 'if'"
+      class="connect-then-btn"
+      @click.stop="startThenConnection"
+      @pointerdown.stop
+      title="Создать then-ветку (выполняется при истинном условии)"
+    >
+      🔗
+    </button>
+
     <DeleteButton @delete="$emit('delete', block.id)" />
   </div>
 </template>
@@ -178,7 +188,20 @@ const startDrag = (event) => {
 
 const startConnection = (event) => {
   event.stopPropagation()
-  emit('start-connection', props.block.id)
+  emit('start-connection', {
+    blockId: props.block.id,
+    blockType: props.block.type,
+    connectionType: 'normal',
+  })
+}
+
+const startThenConnection = (event) => {
+  event.stopPropagation()
+  emit('start-connection', {
+    blockId: props.block.id,
+    blockType: props.block.type,
+    connectionType: 'then',
+  })
 }
 </script>
 
@@ -247,6 +270,37 @@ const startConnection = (event) => {
 
 .connect-btn:hover {
   background-color: #45a049;
+  transform: scale(1.1);
+}
+
+.connect-then-btn {
+  position: absolute;
+  top: -8px;
+  left: 24px;
+  width: 24px;
+  height: 24px;
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.workspace-block:hover .connect-then-btn {
+  opacity: 1;
+}
+
+.connect-then-btn:hover {
+  background-color: #f57c00;
   transform: scale(1.1);
 }
 </style>
