@@ -88,7 +88,8 @@ watch(
 )
 
 const addBlock = (newBlock) => {
-  const exists = blocks.value.some((b) => b.id === newBlock.id)
+
+  const exists = blocks.value.some(b => b.id === newBlock.id)
   if (exists) {
     return
   }
@@ -151,10 +152,67 @@ const onPaletteDrop = (payload) => {
   }
 }
 
-const onMathExecute = ({ result, targetVariable }) => {
-  console.log('TestView onMathExecute:', { result, targetVariable })
-  if (targetVariable && isExecuted.value) {
-    updateVariableValue(targetVariable, result)
+const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => {
+  console.log('🔥 TestView onMathExecute ПОЛУЧИЛ:', { result, targetVariable, targetArray, targetIndex })
+
+  if (targetArray) {
+    const arrayVar = getVariableByName(targetArray)
+    console.log('📦 Найден массив:', arrayVar)
+
+    if (arrayVar && arrayVar.type === 'array') {
+      const newArray = [...arrayVar.value]
+      newArray[targetIndex] = result
+
+      upsertVariable({
+        oldName: targetArray,
+        name: targetArray,
+        type: 'array',
+        elementType: arrayVar.elementType,
+        size: arrayVar.size,
+        value: newArray
+      })
+      console.log('✅ upsertVariable для массива выполнен')
+
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetArray)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = newArray
+          }
+        }
+        return block
+      })
+
+      addLine(`📝 ${targetArray}[${targetIndex}] = ${result}`, 'print')
+    }
+  } else if (targetVariable) {
+    console.log(`🎯 Обновляем переменную: ${targetVariable} = ${result}`)
+
+    // ВРЕМЕННО: прямое обновление без updateVariableValue
+    const variable = getVariableByName(targetVariable)
+    console.log('📦 Найденная переменная:', variable)
+
+    if (variable) {
+      upsertVariable({
+        oldName: targetVariable,
+        name: targetVariable,
+        type: variable.type,
+        value: result
+      })
+      console.log('✅ upsertVariable выполнен')
+
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetVariable)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = result
+          }
+        }
+        return block
+      })
+
+      addLine(`📝 ${targetVariable} = ${result}`, 'print')
+    }
   }
 }
 const runExecution = (initialContext = null) => {

@@ -1,92 +1,28 @@
 <template>
   <div class="math-content">
-      <div class="math-row math-target-row">
-        <select v-model="targetVariable" class="math-target-select" @change="onTargetChange">
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
-            {{ varItem.name }}
-          </option>
-        </select>
-        <span class="math-equals">=</span>
-      </div>
-
-      <div class="math-row">
-        <select v-model="leftType" class="math-type-select" @change="onLeftTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-
-        <select
-          v-if="leftType === 'variable'"
-          v-model="leftVariable"
-          class="math-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
-            {{ varItem.name }}
-          </option>
-        </select>
-
-        <input
-          v-else
-          v-model.number="leftNumber"
-          type="number"
-          class="math-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
-      </div>
-
-      <div class="math-row math-operator-row">
-        <select v-model="operator" class="math-operator-select" @change="emitUpdate">
-          <option value="+">+</option>
-          <option value="-">-</option>
-          <option value="*">×</option>
-          <option value="/">÷</option>
-          <option value="%">%</option>
-        </select>
-      </div>
-
-      <div class="math-row">
-        <select v-model="rightType" class="math-type-select" @change="onRightTypeChange">
-          <option value="variable">Переменная</option>
-          <option value="number">Число</option>
-        </select>
-
-        <select
-          v-if="rightType === 'variable'"
-          v-model="rightVariable"
-          class="math-variable-select"
-          @change="emitUpdate"
-        >
-          <option value="">Выберите переменную</option>
-          <option v-for="varItem in allowedVariables" :key="varItem.name" :value="varItem.name">
-            {{ varItem.name }}
-          </option>
-        </select>
-
-        <input
-          v-else
-          v-model.number="rightNumber"
-          type="number"
-          class="math-number-input"
-          placeholder="число"
-          @input="emitUpdate"
-        />
-      </div>
-
-      <div class="math-row math-result-row" v-if="targetVariable">
-        <span class="math-result-label">{{ targetVariable }} =</span>
-        <span class="math-result">{{ computedResult }}</span>
-      </div>
+    <textarea
+      v-model="expression"
+      class="math-expression-input"
+      placeholder="a = 2 + s[2]"
+      rows="3"
+      @input="onExpressionChange"
+      @keydown.enter.prevent="onEnterKey"
+    ></textarea>
+    
+    <div v-if="error" class="math-error">
+      ❌ {{ error }}
+    </div>
+    
+    <div v-if="preview && !error" class="math-preview">
+      <span class="preview-label">=</span>
+      <span class="preview-value">{{ preview }}</span>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useVariables } from '@/composables/useVariables'
-import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext'
 
 const props = defineProps({
   block: Object,
@@ -94,147 +30,286 @@ const props = defineProps({
   allConnections: Array,
 })
 
+const isArrayAssignment = ref(false)
+const arrayName = ref('')
+const arrayIndex = ref(-1)
 const emit = defineEmits(['update-block', 'execute'])
 
 const { variables, getVariableByName } = useVariables()
 
-const targetVariable = ref(props.block.targetVariable || '')
-const leftType = ref(props.block.leftType || 'variable')
-const leftVariable = ref(props.block.leftVariable || '')
-const leftNumber = ref(props.block.leftNumber || 0)
-const operator = ref(props.block.operator || '+')
-const rightType = ref(props.block.rightType || 'variable')
-const rightVariable = ref(props.block.rightVariable || '')
-const rightNumber = ref(props.block.rightNumber || 0)
-
-const allowedNames = computed(() => {
-  return getDeclaredVariableNamesBeforeBlock(
-    props.allBlocks || [],
-    props.allConnections || [],
-    props.block.id,
-  )
-})
-
-const allowedNameSet = computed(() => new Set(allowedNames.value))
-
-const allowedVariables = computed(() => {
-  const byName = new Map((variables.value || []).map((v) => [v.name, v]))
-  return allowedNames.value.map((name) => byName.get(name)).filter(Boolean)
-})
-
-watch(
-  allowedNameSet,
-  (set) => {
-    let changed = false
-
-    if (targetVariable.value && !set.has(targetVariable.value)) {
-      targetVariable.value = ''
-      changed = true
+const expression = ref(props.block.expression || 'a = 0')
+const error = ref('')
+const preview = ref(null)
+const lastExecutedExpression = ref('')
+const parseExpression = (expr) => {
+  error.value = ''
+  preview.value = null
+  isArrayAssignment.value = false
+  arrayName.value = ''
+  arrayIndex.value = -1
+  if (!expr.includes('=')) {
+    error.value = 'Должно быть = (пример: a = 2 + 3)'
+    return null
+  }
+  const parts = expr.split('=')
+  if (parts.length !== 2) {
+    error.value = 'Должен быть один знак ='
+    return null
+  }
+  const target = parts[0].trim()
+  const expression = parts[1].trim()
+  if (!target) {
+    error.value = 'Нет целевой переменной'
+    return null
+  }
+  const targetArrayMatch = target.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
+  console.log('targetArrayMatch:', targetArrayMatch)
+  
+  if (targetArrayMatch) {
+    const arrayNameStr = targetArrayMatch[1]
+    const index = parseInt(targetArrayMatch[2])
+    
+    const arrayVar = getVariableByName(arrayNameStr)
+    if (!arrayVar) {
+      error.value = `Массив "${arrayNameStr}" не существует`
+      return null
     }
-
-    if (leftType.value === 'variable' && leftVariable.value && !set.has(leftVariable.value)) {
-      leftVariable.value = ''
-      changed = true
+    
+    if (arrayVar.type !== 'array') {
+      error.value = `"${arrayNameStr}" не является массивом`
+      return null
     }
-
-    if (rightType.value === 'variable' && rightVariable.value && !set.has(rightVariable.value)) {
-      rightVariable.value = ''
-      changed = true
+    
+    if (index < 0 || index >= arrayVar.size) {
+      error.value = `Индекс ${index} вне диапазона (0-${arrayVar.size-1})`
+      return null
     }
-
-    if (changed) {
-      emitUpdate()
-    }
-  },
-  { immediate: true },
-)
-
-const computedResult = computed(() => {
-  let leftVal = 0
-  if (leftType.value === 'variable') {
-    const varObj = getVariableByName(leftVariable.value)
-    leftVal = varObj ? varObj.value : 0
+    
+    isArrayAssignment.value = true
+    arrayName.value = arrayNameStr
+    arrayIndex.value = index
+    
   } else {
-    leftVal = leftNumber.value
+    if (!target.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
+      error.value = `Неверное имя переменной: ${target}`
+      return null
+    }
+    const targetVar = getVariableByName(target)
+    if (!targetVar) {
+      error.value = `Переменная "${target}" не существует`
+      return null
+    }
+    isArrayAssignment.value = false
   }
-
-  let rightVal = 0
-  if (rightType.value === 'variable') {
-    const varObj = getVariableByName(rightVariable.value)
-    rightVal = varObj ? varObj.value : 0
+  
+  if (!expression) {
+    error.value = 'Нет выражения после ='
+    return null
+  }
+  const result = parseMathExpression(expression)
+  
+  if (result.error) {
+    error.value = result.error
+    return null
+  }
+  preview.value = result.value
+  if (isArrayAssignment.value) {
+    return {
+      targetArray: arrayName.value,
+      targetIndex: arrayIndex.value,
+      value: result.value
+    }
   } else {
-    rightVal = rightNumber.value
+    return {
+      target,
+      value: result.value
+    }
   }
+}
+const parseValue = (str) => {
+  str = str.trim()
+  if (!isNaN(Number(str))) {
+    return { value: Number(str) }
+  }
+  const arrayMatch = str.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
+  if (arrayMatch) {
+    const name = arrayMatch[1]
+    const index = parseInt(arrayMatch[2])
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
+    }
+    if (variable.type !== 'array') {
+      return { error: `"${name}" не является массивом` }
+    }
+    if (index < 0 || index >= variable.value.length) {
+      return { error: `Индекс ${index} вне диапазона (0-${variable.value.length-1})` }
+    }
+    return { value: variable.value[index] }
+  }
+  const varMatch = str.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+  if (varMatch) {
+    const name = str
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
+    }
+    if (variable.type === 'array') {
+      return { error: `"${name}" - это массив, нужен индекс (например ${name}[0])` }
+    }
+    
+    return { value: variable.value }
+  }
+  
+  if (str.startsWith('(') && str.endsWith(')')) {
+    return parseMathExpression(str.substring(1, str.length - 1))
+  }
+  
+  return { error: `Неверный синтаксис: "${str}"` }
+}
+const parseMathExpression = (expr) => {
+  expr = expr.trim()
 
-  switch (operator.value) {
-    case '+': return leftVal + rightVal
-    case '-': return leftVal - rightVal
-    case '*': return leftVal * rightVal
-    case '/': return rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
-    case '%': return rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
-    default: return 0
+  let bracketLevel = 0
+  let operatorIndex = -1
+  let operator = null
+  
+  for (let i = 0; i < expr.length; i++) {
+    const char = expr[i]
+    
+    if (char === '(') bracketLevel++
+    else if (char === ')') bracketLevel--
+    
+    if (bracketLevel === 0) {
+      if (char === '+' || char === '-') {
+        operatorIndex = i
+        operator = char
+        break
+      }
+    }
   }
-})
+  
+  if (operatorIndex === -1) {
+    bracketLevel = 0
+    for (let i = 0; i < expr.length; i++) {
+      const char = expr[i]
+      
+      if (char === '(') bracketLevel++
+      else if (char === ')') bracketLevel--
+      
+      if (bracketLevel === 0) {
+        if (char === '*' || char === '/' || char === '%') {
+          operatorIndex = i
+          operator = char
+          break
+        }
+      }
+    }
+  }
+  
+  if (operatorIndex !== -1) {
+    const left = expr.substring(0, operatorIndex).trim()
+    const right = expr.substring(operatorIndex + 1).trim()
+    const leftResult = parseMathExpression(left)
+    if (leftResult.error) return leftResult
+    
+    const rightResult = parseMathExpression(right)
+    if (rightResult.error) return rightResult
+    
+    let value
+    switch (operator) {
+      case '+': value = leftResult.value + rightResult.value; break
+      case '-': value = leftResult.value - rightResult.value; break
+      case '*': value = leftResult.value * rightResult.value; break
+      case '/': 
+        if (rightResult.value === 0) return { error: 'Деление на ноль' }
+        value = leftResult.value / rightResult.value
+        break
+      case '%': 
+        if (rightResult.value === 0) return { error: 'Деление на ноль' }
+        value = leftResult.value % rightResult.value
+        break
+      default: return { error: 'Неизвестный оператор' }
+    }
+    
+    return { value }
+  }
+  return parseValue(expr)
+}
+const executeMath = () => {
+  const result = parseExpression(expression.value)
+  
+  if (result && !error.value) {
+    if (expression.value !== lastExecutedExpression.value) {
+      if (isArrayAssignment.value) {
+        emit('execute', {
+          id: props.block.id,
+          result: result.value,
+          targetArray: result.targetArray,
+          targetIndex: result.targetIndex
+        })
+      } else {
+        emit('execute', {
+          id: props.block.id,
+          result: result.value,
+          targetVariable: result.target
+        })
+      }
+      lastExecutedExpression.value = expression.value
+    }
+  }
+}
+const onEnterKey = (e) => {
+  if (e.ctrlKey || e.metaKey) {
+    executeMath()
+  }
+}
+const onExpressionChange = () => {
+  const result = parseExpression(expression.value)
+  if (result && !error.value) {
+    if (isArrayAssignment.value) {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetArray: result.targetArray,
+        targetIndex: result.targetIndex
+      })
+    } else {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetVariable: result.target
+      })
+    }
+  }
+  emitUpdate()
+}
 
-watch(computedResult, (newResult) => {
-  if (targetVariable.value && newResult !== 'Ошибка') {
-    emit('execute', {
-      id: props.block.id,
-      result: newResult,
-      targetVariable: targetVariable.value
-    })
-  }
-})
 
 const emitUpdate = () => {
-  const result = computedResult.value
-
   const updateData = {
     id: props.block.id,
-    targetVariable: targetVariable.value,
-    leftType: leftType.value,
-    leftVariable: leftVariable.value,
-    leftNumber: leftNumber.value,
-    operator: operator.value,
-    rightType: rightType.value,
-    rightVariable: rightVariable.value,
-    rightNumber: rightNumber.value,
-    result: result
+    expression: expression.value
   }
-
-  console.log('🚀 MathBlock emitUpdate CALLED with:', JSON.stringify(updateData))
-
   emit('update-block', updateData)
 }
 
-const onTargetChange = () => {
-  emitUpdate()
-}
 
-const onLeftTypeChange = () => {
-  if (leftType.value === 'variable') {
-    leftVariable.value = ''
-  } else {
-    leftNumber.value = 0
+watch(() => variables.value, () => {
+  parseExpression(expression.value)
+}, { deep: true })
+
+watch(() => props.block, (block) => {
+  if (block.expression) {
+    expression.value = block.expression
+    parseExpression(block.expression)
   }
-  emitUpdate()
-}
-
-const onRightTypeChange = () => {
-  if (rightType.value === 'variable') {
-    rightVariable.value = ''
-  } else {
-    rightNumber.value = 0
-  }
-  emitUpdate()
-}
-
-
+}, { immediate: true })
 </script>
 
 <style scoped>
 .math-content {
-  min-width: 300px;
+  min-width: 320px;
   padding: 15px;
   background-color: #FF5722;
   border-radius: 5px;
@@ -242,20 +317,58 @@ const onRightTypeChange = () => {
   border: 2px solid transparent;
 }
 
-select, input {
-  background: white !important;
+.math-expression-input {
+  width: 100%;
+  padding: 12px;
+  background: #1e1e1e;
+  color: #fff;
+  border: 2px solid #4d4d4d;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 10px;
 }
 
-.math-row,
-.math-target-row,
-.math-operator-row,
-.math-result-row {
+.math-expression-input:focus {
+  outline: none;
+  border-color: #FF5722;
+  box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.3);
+}
+
+.math-error {
+  padding: 10px;
+  background: #ff4444;
+  color: white;
+  border-radius: 4px;
+  font-size: 13px;
+  margin-top: 8px;
+  font-family: 'Courier New', monospace;
+  border-left: 3px solid #cc0000;
+}
+.math-preview {
+  padding: 10px;
+  background: #2d2d2d;
+  border-radius: 4px;
+  margin-top: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
-  justify-content: center;
-  width: 100%;
-  background-color: #FF5722;
+  border-left: 3px solid #4CAF50;
+}
+
+.preview-label {
+  font-size: 18px;
+  font-weight: bold;
+  color: #888;
+}
+
+.preview-value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #4CAF50;
+  font-family: monospace;
 }
 
 .delete-btn {
@@ -281,109 +394,5 @@ select, input {
 .math-block:hover .connect-btn,
 .math-block:hover .delete-btn {
   opacity: 1;
-}
-.math-target-row {
-  margin-bottom: 5px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.math-target-select {
-  flex: 1;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.math-target-select option {
-  background: #FF5722;
-  color: white;
-}
-
-.math-type-select {
-  width: 90px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.math-variable-select {
-  flex: 1;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.math-number-input {
-  width: 80px;
-  padding: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  font-size: 12px;
-  text-align: center;
-}
-
-.math-operator-row {
-  justify-content: center;
-}
-
-.math-operator-select {
-  width: 60px;
-  padding: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  text-align: center;
-  cursor: pointer;
-}
-
-.math-operator-select option {
-  background: #FF5722;
-  color: white;
-}
-
-.math-result-row {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-  justify-content: flex-start;
-}
-
-.math-result-label {
-  font-size: 14px;
-  color: white;
-  font-weight: bold;
-}
-
-.math-result {
-  font-size: 18px;
-  font-weight: bold;
-  color: #4CAF50;
-  min-width: 60px;
-  text-align: center;
-}
-
-.math-equals {
-  font-size: 18px;
-  font-weight: bold;
-  color: white;
-  margin: 0 5px;
 }
 </style>

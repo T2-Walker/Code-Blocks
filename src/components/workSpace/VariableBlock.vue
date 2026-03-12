@@ -70,7 +70,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update-block'])
 
-const { getVariableByName, upsertVariable } = useVariables()
+const { variables, getVariableByName, upsertVariable } = useVariables()
 const isEditing = ref(false)
 const editText = ref('')
 const parsedVariables = ref([])
@@ -339,6 +339,25 @@ watch(
   },
   { immediate: true, deep: true },
 )
+
+const refreshFromStore = () => {
+  if (savedVariables.value.length > 0) {
+    const updatedVars = savedVariables.value.map(v => {
+      const storeVar = getVariableByName(v.name)
+      if (storeVar) {
+        return { ...v, value: storeVar.value }
+      }
+      return v
+    })
+    savedVariables.value = updatedVars
+  }
+}
+
+watch(() => variables.value, () => {
+  if (!isEditing.value) {
+    refreshFromStore()
+  }
+}, { deep: true })
 
 const saveVariableEdit = () => {
   console.log(' [SAVE] attempting to save, parsedVariables:', parsedVariables.value)
