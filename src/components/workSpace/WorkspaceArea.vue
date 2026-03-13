@@ -7,6 +7,7 @@
     @mousemove="onWorkspaceMouseMove"
     @mouseup="onWorkspaceMouseUp"
     @mouseleave="onWorkspaceMouseLeave"
+    @math-execute="onMathExecute"
   >
     <svg class="connection-lines">
       <g v-for="conn in connections" :key="conn.id" class="connection-group">
@@ -114,6 +115,7 @@ const emit = defineEmits([
   'connection-created',
   'connection-deleted',
   'math-execute',
+  
 ])
 
 const { addLine } = useTerminal()
@@ -139,7 +141,7 @@ const minPanY = computed(() => -2000)
 
 const onMathExecute = (data) => {
   console.log('WorkspaceArea onMathExecute:', data)
-  emit('math-execute', data)
+  emit('math-execute', data)  // ← ПРОБРАСЫВАЕМ
 }
   
 
