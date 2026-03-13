@@ -115,7 +115,7 @@ const emit = defineEmits([
   'connection-created',
   'connection-deleted',
   'math-execute',
-  
+
 ])
 
 const { addLine } = useTerminal()
@@ -140,10 +140,9 @@ const minPanY = computed(() => -2000)
 
 
 const onMathExecute = (data) => {
-  console.log('WorkspaceArea onMathExecute:', data)
   emit('math-execute', data)  // ← ПРОБРАСЫВАЕМ
 }
-  
+
 
 const onWorkspaceMouseDown = (e) => {
   if (
@@ -243,7 +242,6 @@ const updateBlockPosition = ({ id, x, y }) => {
 }
 
 const handleBlockUpdate = (blockData) => {
-  console.log('WorkspaceArea handleBlockUpdate:', blockData)
   emit('update-block', blockData)
 }
 
@@ -377,7 +375,6 @@ const handlePaletteDrop = ({ type, clientX, clientY }) => {
     console.log('Creating variable block')
     newBlock = createVariableBlockAtPosition(x, y)
   } else {
-    console.log('Creating base block of type:', type)
     newBlock = createBaseBlock(type, x, y)
   }
 

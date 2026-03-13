@@ -230,7 +230,6 @@ const emitUpdate = () => {
   emit('update-block', updateData)
 }
 
-// Инициализация
 watch(() => props.block, () => {
   initSelectedVariables()
 }, { immediate: true, deep: true })

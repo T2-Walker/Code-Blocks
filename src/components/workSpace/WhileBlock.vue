@@ -298,7 +298,7 @@ const emitUpdate = () => {
     rightNumber: rightNumber.value,
   }
 
-  console.log('📤 IfBlock emitUpdate:', updateData)
+  console.log('WhileBlock emitUpdate:', updateData)
 
   emit('update-block', updateData)
 }

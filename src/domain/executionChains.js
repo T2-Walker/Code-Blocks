@@ -101,12 +101,12 @@ function buildSingleChain(startId, byId, nextMap, thenMap) {
 
     chain.push(block)
 
-    // Сохраняем then-связи если есть
+    // сохраняем then-связи если есть
     if (thenMap[currentId] && thenMap[currentId].length > 0) {
       block.thenConnections = thenMap[currentId]
     }
 
-    // Идем дальше по цепочке (берем первую normal связь)
+    // идем дальше по цепочке (берем первую normal связь)
     const nextForCurrent = nextMap[currentId] || []
     const normalNext = nextForCurrent.filter((id) => {
       const conn = getAllConnections().find((c) => c.from === currentId && c.to === id)

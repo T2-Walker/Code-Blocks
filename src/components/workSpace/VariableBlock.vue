@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useVariables } from '@/composables/useVariables.js'
 
 const props = defineProps({
@@ -86,85 +86,74 @@ const types = ['int', 'boolean', 'double', 'string']
 watch(() => variables.value, (newVars) => {
 
     if (isEditing.value) return
-    
-  console.log('🔄 VariableBlock: store изменился', newVars)
-  
+
+  console.log('VariableBlock: store изменился', newVars)
+
   if (savedVariables.value && savedVariables.value.length > 0) {
     let changed = false
-    
+
     const updatedVars = savedVariables.value.map(v => {
       const storeVar = getVariableByName(v.name)
       if (storeVar && storeVar.value !== v.value) {
-        console.log(`🔄 Обновляем ${v.name}: ${v.value} -> ${storeVar.value}`)
         changed = true
         return { ...v, value: storeVar.value }
       }
       return v
     })
-    
+
     if (changed) {
       savedVariables.value = updatedVars
-      console.log('🔄 savedVariables обновлены:', savedVariables.value)
     }
   }
 }, { deep: true})
 
 const parseEditText = () => {
-  console.log(' [PARSE] editText:', editText.value)
-
   parseError.value = ''
   parsedVariables.value = []
   isValidEdit.value = false
 
   const text = editText.value.trim()
   if (!text) {
-    console.log('[PARSE] empty text')
     return
   }
 
   const lines = text.split('\n').filter((l) => l.trim())
-  console.log('[PARSE] lines:', lines)
 
   const allVariables = []
 
   for (const line of lines) {
-    console.log('[PARSE] parsing line:', line)
     const vars = parseLine(line)
     if (vars.error) {
-      console.log('[PARSE] error:', vars.error)
       parseError.value = vars.error
       return
     }
-    console.log('[PARSE] parsed vars from line:', vars.variables)
     allVariables.push(...vars.variables)
   }
 
-  console.log('[PARSE] allVariables:', allVariables)
   parsedVariables.value = allVariables
   isValidEdit.value = allVariables.length > 0
 }
 
 const parseLine = (line) => {
-  console.log('[LINE] parsing line:', line)
   const result = { variables: [], error: null }
 
   const arrayMatch = line.match(/^(int|boolean|double|string)\[(\d+)\]\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*\{([^}]*)\}$/)
-  
+
   if (arrayMatch) {
     const elementType = arrayMatch[1]
     const size = parseInt(arrayMatch[2])
     const arrayName = arrayMatch[3]
     const valuesStr = arrayMatch[4].trim()
-    
+
     const valueArray = valuesStr.split(',').map(v => {
       const val = v.trim()
       return parseValue(elementType, val)
     })
-    
+
     if (valueArray.length !== size) {
       return { error: `Размер массива ${size}, но передано ${valueArray.length} элементов` }
     }
-    
+
     result.variables.push({
       type: 'array',
       name: arrayName,
@@ -172,13 +161,12 @@ const parseLine = (line) => {
       size: size,
       value: valueArray
     })
-    
+
     return result
   }
 
   const typeMatch = line.match(/^(int|boolean|double|string)\s+(.+)$/)
   if (!typeMatch) {
-    console.log('[LINE] error: no type match')
     return { error: 'Должно начинаться с типа: int, boolean, double, string' }
   }
 
@@ -189,23 +177,18 @@ const parseLine = (line) => {
   }
 
   const rest = typeMatch[2].trim()
-  console.log('[LINE] type:', type, 'rest:', rest)
 
   const parts = rest.split(',').map((p) => p.trim())
-  console.log('[LINE] parts:', parts)
 
   let commonValue = null
   const valueMatch = rest.match(/=\s*(.+)$/)
   if (valueMatch) {
     commonValue = parseValue(type, valueMatch[1].trim())
-    console.log(' [LINE] common value found:', commonValue)
   }
 
   for (const part of parts) {
-    console.log(' [LINE] processing part:', part)
     const varMatch = part.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:=\s*(.+))?$/)
     if (!varMatch) {
-      console.log(' [LINE] invalid format in part:', part)
       return { error: `Неверный формат: ${part}` }
     }
 
@@ -214,10 +197,8 @@ const parseLine = (line) => {
 
     if (varMatch[2]) {
       value = parseValue(type, varMatch[2].trim())
-      console.log(' [LINE] individual value for', name, ':', value)
     } else if (value === null) {
       value = getDefaultValue(type)
-      console.log(' [LINE] default value for', name, ':', value)
     }
 
     result.variables.push({ type, name, value })
@@ -233,7 +214,6 @@ const parseValue = (type, str) => {
   }
 
   str = str.trim()
-  console.log(' [VALUE] parsing', type, 'value:', str)
   switch (type) {
     case 'int':
       console.log(' [VALUE] int parsed:', str)
@@ -272,7 +252,6 @@ const getDefaultValue = (type, elementType = 'int') => {
     boolean: false,
     string: '',
   }
-  console.log(' [DEFAULT] default for', type, ':', defaults[type])
   return defaults[type] || null
 }
 
@@ -288,11 +267,10 @@ const editVariable = () => {
       if (!byType[v.type]) byType[v.type] = []
       byType[v.type].push(v)
     })
-    console.log(' [EDIT] grouped by type:', byType)
 
     Object.entries(byType).forEach(([type, vars]) => {
       const hasArray = vars.some(v => v.type === 'array')
-      
+
       if (hasArray) {
         vars.forEach(v => {
           if (v.type === 'array') {
@@ -319,10 +297,8 @@ const editVariable = () => {
     })
 
     editText.value = lines.join('\n')
-    console.log('[EDIT] editText set to:', editText.value)
   } else {
     editText.value = 'int a = 0'
-    console.log('[EDIT] no saved vars, default editText:', editText.value)
   }
 
   nextTick(() => {
@@ -331,29 +307,13 @@ const editVariable = () => {
   })
 }
 
-const startNewVariable = () => {
-  console.log('➕ [NEW] starting new variable')
-  isEditing.value = true
-  editText.value = ''
-  nextTick(() => {
-    editInput.value?.focus()
-  })
-}
-
 watch(
   () => props.block,
   (block) => {
-    console.log('[WATCH] block changed:', block)
     if (block.type === 'variable') {
       if (block.savedVariables) {
-        console.log('[INIT] loading savedVariables:', block.savedVariables)
         savedVariables.value = block.savedVariables
       } else if (block.variableName) {
-        console.log('[INIT] converting old format:', {
-          name: block.variableName,
-          type: block.variableType,
-          value: block.variableValue,
-        })
         savedVariables.value = [
           {
             name: block.variableName,
@@ -400,7 +360,7 @@ const saveVariableEdit = () => {
 
   savedVariables.value.forEach((v) => {
     console.log(' [SAVE] upserting variable:', v.name, v.value)
-    
+
     if (v.type === 'array') {
       upsertVariable({
         oldName: v.name,
@@ -438,9 +398,7 @@ const saveVariableEdit = () => {
 }
 
 const handleEditEnter = (e) => {
-  console.log(' [ENTER] pressed, ctrlKey:', e.ctrlKey)
   if (e.ctrlKey || e.metaKey) {
-    console.log(' [ENTER] Ctrl+Enter detected, saving')
     saveVariableEdit()
   }
 }
