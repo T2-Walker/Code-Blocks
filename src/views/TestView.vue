@@ -430,45 +430,19 @@ const runExecution = (initialContext = null) => {
         }
 
         let leftVal = 0
-        let leftDisplay = ''
 
         if (block.leftType === 'variable') {
           leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
-          const v = getVariableByName(block.leftVariable)
-
-          if (v && v.type === 'array') {
-            if (block.leftIndex === 'all') {
-              leftDisplay = `${block.leftVariable}[0] (${leftVal})`
-            } else {
-              leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
-            }
-          } else {
-            leftDisplay = `${block.leftVariable} (${leftVal})`
-          }
         } else {
           leftVal = block.leftNumber || 0
-          leftDisplay = String(leftVal)
         }
 
         let rightVal = 0
-        let rightDisplay = ''
 
         if (block.rightType === 'variable') {
           rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
-          const v = getVariableByName(block.rightVariable)
-
-          if (v && v.type === 'array') {
-            if (block.rightIndex === 'all') {
-              rightDisplay = `${block.rightVariable}[0] (${rightVal})`
-            } else {
-              rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
-            }
-          } else {
-            rightDisplay = `${block.rightVariable} (${rightVal})`
-          }
         } else {
           rightVal = block.rightNumber || 0
-          rightDisplay = String(rightVal)
         }
 
         let conditionMet = false
@@ -507,7 +481,7 @@ const runExecution = (initialContext = null) => {
           )
 
           let iterationCount = 0
-          const MAX_ITERATIONS = 3000
+          const MAX_ITERATIONS = 500
 
           while (conditionMet && iterationCount < MAX_ITERATIONS) {
             iterationCount++
