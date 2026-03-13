@@ -67,14 +67,12 @@ export function createBaseBlock(type, x, y) {
   }
 
   if (type === 'math') {
-    return {
-      ...baseBlock,
-      operation: '+',
-      customValue: 5,
-      customValuePosition: 'right',
-      targetVariable: ''
-    }
+  return {
+    ...baseBlock,
+    expression: 'a = 0',
+    executeTrigger: 0
   }
+}
 
   return baseBlock
 }

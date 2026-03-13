@@ -208,7 +208,7 @@ const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => 
    
   }
 }
-const runExecution = (initialContext = null) => {
+const runExecution = async (initialContext = null) => {
   addLine('--- Начало выполнения ---', 'output')
 
   if (!initialContext) {
@@ -479,22 +479,36 @@ const runExecution = (initialContext = null) => {
           while (conditionMet && iterationCount < MAX_ITERATIONS) {
             iterationCount++
 
-            // Создаем контекст для этой итерации
             let loopContext = {}
             varNamesBeforeWhile.forEach((name) => {
               loopContext[name] = currentVariables[name]
             })
 
             for (const thenConn of thenConnections) {
-              const loopResult = runExecution({
-                ...loopContext,
-                startId: thenConn.to,
-              })
+  const targetBlock = blocks.value.find(b => b.id === thenConn.to)
+  
+  if (targetBlock && targetBlock.type === 'math') {
+    
+    targetBlock.executeTrigger = (targetBlock.executeTrigger || 0) + 1
+    
+    updateBlockPosition({
+      id: targetBlock.id,
+      executeTrigger: targetBlock.executeTrigger
+    })
+    
+    await new Promise(resolve => setTimeout(resolve, 10))
+    
+  } else {
+    const loopResult = runExecution({
+      ...loopContext,
+      startId: thenConn.to,
+    })
 
-              if (loopResult) {
-                Object.assign(currentVariables, loopResult)
-              }
-            }
+    if (loopResult) {
+      Object.assign(currentVariables, loopResult)
+    }
+  }
+}
 
             if (block.leftType === 'variable') {
               leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
@@ -527,62 +541,55 @@ const runExecution = (initialContext = null) => {
       }
 
       if (block.type === 'math') {
-        const isThenBranch = initialContext?.startId !== undefined
-        const prefix = isThenBranch ? '[then] ' : ''
+  const isThenBranch = initialContext?.startId !== undefined
+  const prefix = isThenBranch ? '[then] ' : ''
 
-        if (!block.targetVariable) {
-          addLine('Math-блок без целевой переменной, пропуск', 'error')
-          continue
-        }
-        let leftVal = 0
-        if (block.leftType === 'variable') {
-          const v = getVarValueByName(block.leftVariable)
-          leftVal = typeof v === 'number' ? v : 0
-        } else {
-          leftVal = block.leftNumber || 0
-        }
+  if (isThenBranch) {
+    continue
+  }
+  if (!block.targetVariable) {
+    addLine('Math-блок без целевой переменной, пропуск', 'error')
+    continue
+  }
+  
+  let leftVal = 0
+  if (block.leftType === 'variable') {
+    const v = getVarValueByName(block.leftVariable)
+    leftVal = typeof v === 'number' ? v : 0
+  } else {
+    leftVal = block.leftNumber || 0
+  }
 
-        let rightVal = 0
-        if (block.rightType === 'variable') {
-          const v = getVarValueByName(block.rightVariable)
-          rightVal = typeof v === 'number' ? v : 0
-        } else {
-          rightVal = block.rightNumber || 0
-        }
+  let rightVal = 0
+  if (block.rightType === 'variable') {
+    const v = getVarValueByName(block.rightVariable)
+    rightVal = typeof v === 'number' ? v : 0
+  } else {
+    rightVal = block.rightNumber || 0
+  }
 
-        let result
-        switch (block.operator) {
-          case '+':
-            result = leftVal + rightVal
-            break
-          case '-':
-            result = leftVal - rightVal
-            break
-          case '*':
-            result = leftVal * rightVal
-            break
-          case '/':
-            result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
-            break
-          case '%':
-            result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
-            break
-          default:
-            result = 0
-        }
+  let result
+  switch (block.operator) {
+    case '+': result = leftVal + rightVal; break
+    case '-': result = leftVal - rightVal; break
+    case '*': result = leftVal * rightVal; break
+    case '/': result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'; break
+    case '%': result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'; break
+    default: result = 0
+  }
 
-        if (result === 'Ошибка') {
-          addLine(`Ошибка в math-блоке: деление на ноль`, 'error')
-          continue
-        }
+  if (result === 'Ошибка') {
+    addLine(`Ошибка в math-блоке: деление на ноль`, 'error')
+    continue
+  }
 
-        currentVariables[block.targetVariable] = result
-
-        addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
-        if (!initialContext) {
-          updateVariableValue(block.targetVariable, result)
-        }
-      }
+  currentVariables[block.targetVariable] = result
+  addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
+  
+  if (!initialContext) {
+    updateVariableValue(block.targetVariable, result)
+  }
+}
 
       if (block.type === 'print') {
         const itemsToPrint = block.selectedVariables || []
