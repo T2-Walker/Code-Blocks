@@ -38,7 +38,6 @@
 </template>
 
 <script setup>
-
 import { ref, watch } from 'vue'
 import SidebarBlocks from '@/components/sidebar/SidebarBlocks.vue'
 import WorkspaceArea from '@/components/workSpace/WorkspaceArea.vue'
@@ -48,6 +47,7 @@ import { useExecutionState } from '@/composables/useExecutionState'
 import { getAllConnections } from '@/domain/connections'
 import { buildExecutionChains } from '@/domain/executionChains'
 import { useVariables } from '@/composables/useVariables'
+import { getDeclaredVariableNamesBeforeBlock } from '@/domain/chainContext.js'
 
 const blocks = ref([])
 const workspaceAreaRef = ref(null)
@@ -60,16 +60,11 @@ const {
   addLine,
   clearTerminal,
   toggleTerminal,
-  updatePosition
+  updatePosition,
 } = useTerminal()
 
-const {
-  isExecuted,
-  saveInitialState,
-  restoreInitialState,
-  setExecuted,
-  resetExecution
-} = useExecutionState()
+const { isExecuted, saveInitialState, restoreInitialState, setExecuted, resetExecution } =
+  useExecutionState()
 const updateVariableValue = (name, value) => {
   const variable = getVariableByName(name)
   if (variable) {
@@ -77,16 +72,20 @@ const updateVariableValue = (name, value) => {
       oldName: name,
       name,
       type: variable.type,
-      value
+      value,
     })
   }
 }
 
-  watch(variables, (newVars) => {
+watch(
+  variables,
+  (newVars) => {
     if (!isExecuted.value) {
       saveInitialState(newVars)
     }
-  }, { deep: true, immediate: true })
+  },
+  { deep: true, immediate: true },
+)
 
 const addBlock = (newBlock) => {
 
@@ -99,38 +98,27 @@ const addBlock = (newBlock) => {
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
 
-const updateBlockPosition = ({
-  id, x, y, variableName, variableType, variableValue,
-  targetVariable, leftType, leftVariable, leftNumber, operator,
-  rightType, rightVariable, rightNumber, selectedVariables,
-  comparator, savedVariables, leftIndex, rightIndex  // ← ДОБАВИТЬ СЮДА
-}) => {
-  console.log('📥 TestView updateBlockPosition:', {
-    id, x, y, variableName, variableType, variableValue,
-    targetVariable, leftVariable, rightVariable, selectedVariables,
-    comparator, savedVariables, leftIndex, rightIndex  // ← И В ЛОГИ
-  })
-
-  const block = blocks.value.find((b) => b.id === id)
+const updateBlockPosition = (data) => {
+  const block = blocks.value.find((b) => b.id === data.id)
   if (block) {
-    if (x !== undefined) block.x = Math.round(x)
-    if (y !== undefined) block.y = Math.round(y)
-    if (variableName !== undefined) block.variableName = variableName
-    if (variableType !== undefined) block.variableType = variableType
-    if (variableValue !== undefined) block.variableValue = variableValue
-    if (targetVariable !== undefined) block.targetVariable = targetVariable
-    if (leftType !== undefined) block.leftType = leftType
-    if (leftVariable !== undefined) block.leftVariable = leftVariable
-    if (leftNumber !== undefined) block.leftNumber = leftNumber
-    if (leftIndex !== undefined) block.leftIndex = leftIndex    // ← ДОБАВИТЬ
-    if (operator !== undefined) block.operator = operator
-    if (rightType !== undefined) block.rightType = rightType
-    if (rightVariable !== undefined) block.rightVariable = rightVariable
-    if (rightNumber !== undefined) block.rightNumber = rightNumber
-    if (rightIndex !== undefined) block.rightIndex = rightIndex  // ← ДОБАВИТЬ
-    if (selectedVariables !== undefined) block.selectedVariables = selectedVariables
-    if (comparator !== undefined) block.comparator = comparator
-    if (savedVariables !== undefined) block.savedVariables = savedVariables
+    if (data.x !== undefined) block.x = Math.round(data.x)
+    if (data.y !== undefined) block.y = Math.round(data.y)
+    if (data.variableName !== undefined) block.variableName = data.variableName
+    if (data.variableType !== undefined) block.variableType = data.variableType
+    if (data.variableValue !== undefined) block.variableValue = data.variableValue
+    if (data.targetVariable !== undefined) block.targetVariable = data.targetVariable
+    if (data.leftType !== undefined) block.leftType = data.leftType
+    if (data.leftVariable !== undefined) block.leftVariable = data.leftVariable
+    if (data.leftNumber !== undefined) block.leftNumber = data.leftNumber
+    if (data.operator !== undefined) block.operator = data.operator
+    if (data.rightType !== undefined) block.rightType = data.rightType
+    if (data.rightVariable !== undefined) block.rightVariable = data.rightVariable
+    if (data.rightNumber !== undefined) block.rightNumber = data.rightNumber
+    if (data.selectedVariables !== undefined) block.selectedVariables = data.selectedVariables
+    if (data.comparator !== undefined) block.comparator = data.comparator
+    if (data.savedVariables !== undefined) block.savedVariables = data.savedVariables
+    if (data.leftIndex !== undefined) block.leftIndex = data.leftIndex
+    if (data.rightIndex !== undefined) block.rightIndex = data.rightIndex
   }
 }
 const updateVariableBlock = ({ id, variableName, variableType, variableValue }) => {
@@ -144,7 +132,7 @@ const updateVariableBlock = ({ id, variableName, variableType, variableValue }) 
 
 const deleteBlock = (blockId) => {
   const block = blocks.value.find((b) => b.id === blockId)
-  const blockName = block ? (block.variableName || block.name) : 'блок'
+  const blockName = block ? block.variableName || block.name : 'блок'
   blocks.value = blocks.value.filter((b) => b.id !== blockId)
   connections.value = getAllConnections()
   addLine(`Удален блок: ${blockName}`, 'output')
@@ -164,29 +152,96 @@ const onPaletteDrop = (payload) => {
   }
 }
 
-const onMathExecute = ({ result, targetVariable }) => {
-  console.log('TestView onMathExecute:', { result, targetVariable })
-  if (targetVariable && isExecuted.value) {
-    updateVariableValue(targetVariable, result)
+const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => {
+  console.log('🔥 TestView onMathExecute ПОЛУЧИЛ:', { result, targetVariable, targetArray, targetIndex })
+
+  if (targetArray) {
+    const arrayVar = getVariableByName(targetArray)
+    console.log('📦 Найден массив:', arrayVar)
+
+    if (arrayVar && arrayVar.type === 'array') {
+      const newArray = [...arrayVar.value]
+      newArray[targetIndex] = result
+
+      upsertVariable({
+        oldName: targetArray,
+        name: targetArray,
+        type: 'array',
+        elementType: arrayVar.elementType,
+        size: arrayVar.size,
+        value: newArray
+      })
+      console.log('✅ upsertVariable для массива выполнен')
+
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetArray)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = newArray
+          }
+        }
+        return block
+      })
+
+      addLine(`📝 ${targetArray}[${targetIndex}] = ${result}`, 'print')
+    }
+  } else if (targetVariable) {
+    console.log(`🎯 Обновляем переменную: ${targetVariable} = ${result}`)
+
+    // ВРЕМЕННО: прямое обновление без updateVariableValue
+    const variable = getVariableByName(targetVariable)
+    console.log('📦 Найденная переменная:', variable)
+
+    if (variable) {
+      upsertVariable({
+        oldName: targetVariable,
+        name: targetVariable,
+        type: variable.type,
+        value: result
+      })
+      console.log('✅ upsertVariable выполнен')
+
+      blocks.value = blocks.value.map(block => {
+        if (block.type === 'variable' && block.savedVariables) {
+          const varIndex = block.savedVariables.findIndex(v => v.name === targetVariable)
+          if (varIndex !== -1) {
+            block.savedVariables[varIndex].value = result
+          }
+        }
+        return block
+      })
+
+      addLine(`📝 ${targetVariable} = ${result}`, 'print')
+    }
   }
 }
-const runExecution = () => {
-
+const runExecution = (initialContext = null) => {
   addLine('--- Начало выполнения ---', 'output')
 
-  const startBlocks = blocks.value.filter(b => b.type === 'start')
-  if (startBlocks.length === 0) {
-    addLine('Ошибка: Не найден блок "Начать"', 'error')
-    return
+  if (!initialContext) {
+    const startBlocks = blocks.value.filter((b) => b.type === 'start')
+    if (startBlocks.length === 0) {
+      addLine('Ошибка: Не найден блок "Начать"', 'error')
+      return
+    }
+    saveInitialState(variables.value)
   }
 
-  saveInitialState(variables.value)
+  const currentVariables = {}
+  if (initialContext) {
+    Object.assign(currentVariables, initialContext)
+  } else {
+    variables.value.forEach((v) => {
+      currentVariables[v.name] = v.value
+    })
+  }
 
-  const { chains, reachableIds } = buildExecutionChains(blocks.value)
+  const { chains, reachableIds } = initialContext?.startId
+    ? buildExecutionChains(blocks.value, initialContext.startId)
+    : buildExecutionChains(blocks.value)
 
   const getVarValueByName = (name) => {
-    const v = getVariableByName(name)
-    return v ? v.value : undefined
+    return currentVariables[name]
   }
 
   for (const chain of chains) {
@@ -206,105 +261,149 @@ const runExecution = () => {
 
       if (block.type === 'variable') {
         if (block.savedVariables && Array.isArray(block.savedVariables)) {
-          block.savedVariables.forEach(v => {
-            if (v.name) touchVar(v.name)
+          block.savedVariables.forEach((v) => {
+            if (v.name) {
+              touchVar(v.name)
+              currentVariables[v.name] = v.value
+            }
           })
         } else if (block.variableName) {
           touchVar(block.variableName)
+          currentVariables[block.variableName] = block.variableValue ?? 0
         }
       }
-if (block.type === 'if') {
-  console.log('🔍 IF block data:', {
-    leftType: block.leftType,
-    leftVariable: block.leftVariable,
-    leftIndex: block.leftIndex,
-    leftNumber: block.leftNumber,
-    comparator: block.comparator,
-    rightType: block.rightType,
-    rightVariable: block.rightVariable,
-    rightIndex: block.rightIndex,
-    rightNumber: block.rightNumber
-  })
+      if (block.type === 'if') {
+        console.log('🔍 IF block data:', {
+          leftType: block.leftType,
+          leftVariable: block.leftVariable,
+          leftIndex: block.leftIndex,
+          leftNumber: block.leftNumber,
+          comparator: block.comparator,
+          rightType: block.rightType,
+          rightVariable: block.rightVariable,
+          rightIndex: block.rightIndex,
+          rightNumber: block.rightNumber,
+        })
 
+        const getValueWithIndex = (varName, index) => {
+          const v = getVariableByName(varName)
+          if (!v) return 0
 
-  const getValueWithIndex = (varName, index) => {
-    const v = getVariableByName(varName)
-    if (!v) return 0
+          if (v.type === 'array') {
+            if (index === 'all') {
+              return v.value[0] || 0
+            } else {
+              const idx = parseInt(index)
+              return v.value[idx] || 0
+            }
+          }
+          return v.value
+        }
 
-    if (v.type === 'array') {
-      if (index === 'all') {
-        return v.value[0] || 0
-      } else {
-        const idx = parseInt(index)
-        return v.value[idx] || 0
+        let leftVal = 0
+        let leftDisplay = ''
+
+        if (block.leftType === 'variable') {
+          leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
+          const v = getVariableByName(block.leftVariable)
+
+          if (v && v.type === 'array') {
+            if (block.leftIndex === 'all') {
+              leftDisplay = `${block.leftVariable}[0] (${leftVal})`
+            } else {
+              leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
+            }
+          } else {
+            leftDisplay = `${block.leftVariable} (${leftVal})`
+          }
+        } else {
+          leftVal = block.leftNumber || 0
+          leftDisplay = String(leftVal)
+        }
+
+        let rightVal = 0
+        let rightDisplay = ''
+
+        if (block.rightType === 'variable') {
+          rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
+          const v = getVariableByName(block.rightVariable)
+
+          if (v && v.type === 'array') {
+            if (block.rightIndex === 'all') {
+              rightDisplay = `${block.rightVariable}[0] (${rightVal})`
+            } else {
+              rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
+            }
+          } else {
+            rightDisplay = `${block.rightVariable} (${rightVal})`
+          }
+        } else {
+          rightVal = block.rightNumber || 0
+          rightDisplay = String(rightVal)
+        }
+
+        let conditionMet = false
+        const comparator = block.comparator || '=='
+
+        switch (comparator) {
+          case '==':
+            conditionMet = leftVal == rightVal
+            break
+          case '!=':
+            conditionMet = leftVal != rightVal
+            break
+          case '>':
+            conditionMet = leftVal > rightVal
+            break
+          case '<':
+            conditionMet = leftVal < rightVal
+            break
+          case '>=':
+            conditionMet = leftVal >= rightVal
+            break
+          case '<=':
+            conditionMet = leftVal <= rightVal
+            break
+        }
+
+        const varNamesBeforeIf = getDeclaredVariableNamesBeforeBlock(
+          blocks.value,
+          connections.value,
+          block.id,
+        )
+
+        if (conditionMet) {
+          let thenContext = {
+            startId: null, // будет заполнено для каждой then-связи вместо null
+          }
+          varNamesBeforeIf.forEach((name) => {
+            thenContext[name] = currentVariables[name]
+          })
+
+          const thenConnections = connections.value.filter(
+            (conn) => conn.from === block.id && conn.type === 'then',
+          )
+
+          for (const thenConn of thenConnections) {
+            const thenResult = runExecution({
+              ...thenContext,
+              startId: thenConn.to,
+            })
+
+            if (thenResult) {
+              Object.assign(currentVariables, thenResult)
+            }
+          }
+          addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
+        } else {
+          addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
+          if (!initialContext) break
+        }
       }
-    }
-    return v.value
-  }
-
-  let leftVal = 0
-  let leftDisplay = ''
-
-  if (block.leftType === 'variable') {
-    leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
-    const v = getVariableByName(block.leftVariable)
-
-    if (v && v.type === 'array') {
-      if (block.leftIndex === 'all') {
-        leftDisplay = `${block.leftVariable}[0] (${leftVal})`
-      } else {
-        leftDisplay = `${block.leftVariable}[${block.leftIndex}] (${leftVal})`
-      }
-    } else {
-      leftDisplay = `${block.leftVariable} (${leftVal})`
-    }
-  } else {
-    leftVal = block.leftNumber || 0
-    leftDisplay = String(leftVal)
-  }
-
-  let rightVal = 0
-  let rightDisplay = ''
-
-  if (block.rightType === 'variable') {
-    rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
-    const v = getVariableByName(block.rightVariable)
-
-    if (v && v.type === 'array') {
-      if (block.rightIndex === 'all') {
-        rightDisplay = `${block.rightVariable}[0] (${rightVal})`
-      } else {
-        rightDisplay = `${block.rightVariable}[${block.rightIndex}] (${rightVal})`
-      }
-    } else {
-      rightDisplay = `${block.rightVariable} (${rightVal})`
-    }
-  } else {
-    rightVal = block.rightNumber || 0
-    rightDisplay = String(rightVal)
-  }
-
-  let conditionMet = false
-  const comparator = block.comparator || '=='
-
-  switch (comparator) {
-    case '==': conditionMet = leftVal == rightVal; break
-    case '!=': conditionMet = leftVal != rightVal; break
-    case '>': conditionMet = leftVal > rightVal; break
-    case '<': conditionMet = leftVal < rightVal; break
-    case '>=': conditionMet = leftVal >= rightVal; break
-    case '<=': conditionMet = leftVal <= rightVal; break
-  }
-
-  // Выводим результат
-  if (conditionMet) {
-    addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
-  } else {
-    addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
-    break
-  }
-}
       if (block.type === 'math') {
+        const isThenBranch = initialContext?.startId !== undefined
+        const prefix = isThenBranch ? '[then] ' : ''
+
         if (!block.targetVariable) {
           addLine('Math-блок без целевой переменной, пропуск', 'error')
           continue
@@ -327,12 +426,23 @@ if (block.type === 'if') {
 
         let result
         switch (block.operator) {
-          case '+': result = leftVal + rightVal; break
-          case '-': result = leftVal - rightVal; break
-          case '*': result = leftVal * rightVal; break
-          case '/': result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'; break
-          case '%': result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'; break
-          default: result = 0
+          case '+':
+            result = leftVal + rightVal
+            break
+          case '-':
+            result = leftVal - rightVal
+            break
+          case '*':
+            result = leftVal * rightVal
+            break
+          case '/':
+            result = rightVal !== 0 ? leftVal / rightVal : 'Ошибка'
+            break
+          case '%':
+            result = rightVal !== 0 ? leftVal % rightVal : 'Ошибка'
+            break
+          default:
+            result = 0
         }
 
         if (result === 'Ошибка') {
@@ -340,59 +450,71 @@ if (block.type === 'if') {
           continue
         }
 
-        updateVariableValue(block.targetVariable, result)
+        currentVariables[block.targetVariable] = result
 
+        addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
+        if (!initialContext) {
+          updateVariableValue(block.targetVariable, result)
+        }
       }
 
       if (block.type === 'print') {
-  const itemsToPrint = block.selectedVariables || []
+        const itemsToPrint = block.selectedVariables || []
 
-  if (itemsToPrint.length === 0) {
-    addLine('Нет переменных для вывода', 'output')
-  } else {
-    addLine('Вывод:', 'output')
-    for (const item of itemsToPrint) {
-      const varName = item.name || item
-      const v = getVariableByName(varName)
+        const isThenBranch = initialContext?.startId !== undefined
+        const prefix = isThenBranch ? '[then] ' : ''
 
-      if (v) {
-        if (v.type === 'array') {
-          const index = item.index
-          if (index === 'all') {
-            addLine(`  ${v.name} = [${v.value.join(', ')}]`, 'print')
-          } else {
-            const idx = parseInt(index)
-            addLine(`  ${v.name}[${idx}] = ${v.value[idx]}`, 'print')
-          }
+        if (itemsToPrint.length === 0) {
+          addLine('Нет переменных для вывода', 'output')
         } else {
-          addLine(`  ${v.name} = ${v.value}`, 'print')
+          addLine('Вывод:', 'output')
+          for (const item of itemsToPrint) {
+            const varName = item.name || item
+            const v = getVariableByName(varName)
+
+            if (v) {
+              if (v.type === 'array') {
+                const index = item.index
+                if (index === 'all') {
+                  addLine(`  ${prefix}${v.name} = [${v.value.join(', ')}]`, 'print')
+                } else {
+                  const idx = parseInt(index)
+                  addLine(`  ${prefix}${v.name}[${idx}] = ${v.value[idx]}`, 'print')
+                }
+              } else {
+                addLine(`  ${prefix}${v.name} = ${v.value}`, 'print')
+              }
+            } else {
+              addLine(`  ${prefix}${varName} = (переменная не найдена)`, 'error')
+            }
+          }
         }
-      } else {
-        addLine(`  ${varName} = (переменная не найдена)`, 'error')
       }
     }
   }
-}
-    }
+
+  if (!initialContext) {
+    setExecuted()
   }
 
-  setExecuted()
   addLine('--- Выполнение завершено ---', 'output')
+
+  if (initialContext) {
+    return currentVariables
+  }
 }
 const endExecution = () => {
   restoreInitialState(updateVariableValue)
   resetExecution()
   addLine('🔄 Возврат к начальным значениям', 'output')
 }
-
 </script>
 
 <style scoped>
-
 .test-page {
   width: 100%;
   height: 100vh;
-  background-color: #1f1a2e;
+  background-color: #1e1e1e;
   position: relative;
   overflow: hidden;
 }
@@ -484,7 +606,7 @@ const endExecution = () => {
   position: absolute;
   top: 20px;
   left: 30px;
-  background: #2196F3;
+  background: #2196f3;
   color: white;
   border: none;
   border-radius: 5px;
@@ -495,6 +617,6 @@ const endExecution = () => {
 }
 
 .debug-btn:hover {
-  background: #1976D2;
+  background: #1976d2;
 }
 </style>
