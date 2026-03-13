@@ -89,7 +89,6 @@ watch(() => variables.value, (newVars) => {
     
   console.log('🔄 VariableBlock: store изменился', newVars)
   
-  // Обновляем значения в savedVariables
   if (savedVariables.value && savedVariables.value.length > 0) {
     let changed = false
     

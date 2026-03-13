@@ -46,7 +46,7 @@ const isArrayAssignment = ref(false)
 const isExecuting = ref(false)
 const arrayName = ref('')
 const arrayIndex = ref(-1)
-const emit = defineEmits(['update-block', 'execute'])
+const emit = defineEmits(['update-block', 'execute', 'program-execute'])
 const isValid = ref(false)
 
 const { variables, getVariableByName } = useVariables()
@@ -198,6 +198,39 @@ const executeMath = () => {
   
   isExecuting.value = false
 }
+const programExecute = () => {
+  const result = parseExpression(expression.value)
+  
+  if (result && !error.value) {
+    if (isArrayAssignment.value) {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetArray: result.targetArray,
+        targetIndex: result.targetIndex
+      })
+    } else {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetVariable: result.target
+      })
+    }
+    
+    wasExecuted.value = true
+    setTimeout(() => {
+      wasExecuted.value = false
+    }, 500)
+    
+    return true
+  }
+  return false
+}
+watch(() => props.block.executeTrigger, (newVal) => {
+  if (newVal > 0) {
+    programExecute()
+  }
+}, { immediate: false })
 
 watch(() => variables.value, () => {
   updateValidState()
