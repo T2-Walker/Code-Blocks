@@ -94,7 +94,23 @@
       />
     </template>
 
-    <!-- Обычный блок -->
+    <template v-else-if="block.type === 'while'">
+      <WhileBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
+
+    <!-- Start блок -->
     <template v-else>
       <span>{{ block.name }}</span>
     </template>
@@ -103,7 +119,7 @@
     <button class="connect-btn" @click.stop="startConnection" @pointerdown.stop>🔗</button>
 
     <button
-      v-if="block.type === 'if'"
+      v-if="block.type === 'if' || block.type === 'while'"
       class="connect-then-btn"
       @click.stop="startThenConnection"
       @pointerdown.stop
@@ -123,6 +139,7 @@ import IfBlock from './IfBlock.vue'
 import MathBlock from './MathBlock.vue'
 import VariableBlock from './VariableBlock.vue'
 import EndBlock from './EndBlock.vue'
+import WhileBlock from './WhileBlock.vue'
 import DeleteButton from '../UI/DeleteButton.vue'
 
 const props = defineProps({

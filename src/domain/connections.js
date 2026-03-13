@@ -10,7 +10,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
     return { allowed: false, reason: 'Нельзя соединить блок с самим собой' }
   }
 
-  if (connectionType.value === 'then' && sourceBlock.type !== 'if') {
+  if (connectionType.value === 'then' && sourceBlock.type !== 'if' && sourceBlock.type !== 'while') {
     return { allowed: false, reason: 'Then-связи можно создавать только от блока Условие' }
   }
 
@@ -42,7 +42,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
     if (targetBlock.type !== 'start') {
       return { allowed: false, reason: 'End может соединяться только со Start' }
     }
-  } else if (sourceBlock.type === 'if') {
+  } else if (sourceBlock.type === 'if' || sourceBlock.type === 'while') {
     const existingNormal = currentConnections.some(
       (conn) => conn.from === sourceBlock.id && conn.type === 'normal',
     )
@@ -51,10 +51,10 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
     )
 
     if (connectionType === 'normal' && existingNormal) {
-      return { allowed: false, reason: 'У блока If может быть только одна обычная связь' }
+      return { allowed: false, reason: `У блока ${sourceBlock.type} может быть только одна обычная связь` }
     }
     if (connectionType === 'then' && existingThen) {
-      return { allowed: false, reason: 'У блока If может быть только одна then-связь' }
+      return { allowed: false, reason: `У блока ${sourceBlock.type} может быть только одна then-связь` }
     }
   } else if ((outgoingCount[sourceBlock.id] || 0) >= 1) {
     return {

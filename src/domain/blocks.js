@@ -20,15 +20,20 @@ export const BLOCK_TYPES = {
     color: '#FF5722',
   },
   if: {
-  type: 'if',
-  label: 'Условие',
-  color: '#FFC107',
+    type: 'if',
+    label: 'Условие',
+    color: '#FFC107',
   },
   end: {
     type: 'end',
     label: 'Конец',
     color: '#DC143C',
-  }
+  },
+  while: {
+    type: 'while',
+    label: 'Цикл',
+    color: '#0000FF',
+  },
 }
 
 export const MATH_OPERATIONS = [
