@@ -79,7 +79,36 @@ const parseError = ref('')
 const isValidEdit = ref(false)
 const editInput = ref(null)
 
+
+
 const types = ['int', 'boolean', 'double', 'string']
+
+watch(() => variables.value, (newVars) => {
+
+    if (isEditing.value) return
+    
+  console.log('🔄 VariableBlock: store изменился', newVars)
+  
+  // Обновляем значения в savedVariables
+  if (savedVariables.value && savedVariables.value.length > 0) {
+    let changed = false
+    
+    const updatedVars = savedVariables.value.map(v => {
+      const storeVar = getVariableByName(v.name)
+      if (storeVar && storeVar.value !== v.value) {
+        console.log(`🔄 Обновляем ${v.name}: ${v.value} -> ${storeVar.value}`)
+        changed = true
+        return { ...v, value: storeVar.value }
+      }
+      return v
+    })
+    
+    if (changed) {
+      savedVariables.value = updatedVars
+      console.log('🔄 savedVariables обновлены:', savedVariables.value)
+    }
+  }
+}, { deep: true})
 
 const parseEditText = () => {
   console.log(' [PARSE] editText:', editText.value)

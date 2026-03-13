@@ -1,21 +1,30 @@
 <template>
-  <div class="math-content">
-    <!-- Текстовое поле для ввода выражения -->
+  <div 
+    class="math-content" 
+    :class="{ 'executed': wasExecuted }"
+  >
     <textarea
       v-model="expression"
       class="math-expression-input"
       placeholder="a = 2 + s[2]"
       rows="3"
       @input="onExpressionChange"
-      @keydown.enter.prevent="onEnterKey"
+ 
     ></textarea>
+     <button 
+      class="math-execute-btn" 
+      @click.stop="executeMath"
+      :disabled="!isValid"
+      title="Выполнить выражение"
+    >
+      ✓
+    </button>
     
-    <!-- Блок ошибок (появляется только если есть ошибка) -->
+    
     <div v-if="error" class="math-error">
       ❌ {{ error }}
     </div>
     
-    <!-- Блок предпросмотра (появляется только если нет ошибки) -->
     <div v-if="preview && !error" class="math-preview">
       <span class="preview-label">=</span>
       <span class="preview-value">{{ preview }}</span>
@@ -33,123 +42,110 @@ const props = defineProps({
   allConnections: Array,
 })
 
-// Новые переменные для отслеживания записи в массив
 const isArrayAssignment = ref(false)
+const isExecuting = ref(false)
 const arrayName = ref('')
 const arrayIndex = ref(-1)
 const emit = defineEmits(['update-block', 'execute'])
+const isValid = ref(false)
 
 const { variables, getVariableByName } = useVariables()
 
-// ЕДИНСТВЕННАЯ реактивная переменная - выражение
 const expression = ref(props.block.expression || 'a = 0')
-
-// Для ошибок и предпросмотра
 const error = ref('')
 const preview = ref(null)
+const wasExecuted = ref(false)
 
-// Запоминаем последнее выполненное выражение
-const lastExecutedExpression = ref('')
-
-// Функция для парсинга выражения
 const parseExpression = (expr) => {
-  console.log('🔍 Парсим:', expr)
-  
-  // Сбрасываем ошибки
   error.value = ''
   preview.value = null
   isArrayAssignment.value = false
-  arrayName.value = ''  // Сначала сбрасываем
+  arrayName.value = ''
   arrayIndex.value = -1
   
-  // 1. Проверяем, есть ли знак "="
   if (!expr.includes('=')) {
     error.value = 'Должно быть = (пример: a = 2 + 3)'
+    isValid.value = false
     return null
   }
   
-  // 2. Разделяем на левую и правую часть
   const parts = expr.split('=')
   if (parts.length !== 2) {
     error.value = 'Должен быть один знак ='
+    isValid.value = false
     return null
   }
   
   const target = parts[0].trim()
   const expression = parts[1].trim()
   
-  // 3. Проверяем целевую переменную (может быть массивом или обычной переменной)
   if (!target) {
     error.value = 'Нет целевой переменной'
+    isValid.value = false
     return null
   }
   
-  // Проверяем, не массив ли это (например "arr[2]")
+  if (!expression) {
+    error.value = 'Нет выражения после ='
+    isValid.value = false
+    return null
+  }
+  
   const targetArrayMatch = target.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
-  console.log('targetArrayMatch:', targetArrayMatch)
   
   if (targetArrayMatch) {
-    // ЭТО ЗАПИСЬ В МАССИВ!
-    const arrayNameStr = targetArrayMatch[1]  // Переименовали, чтобы не путать с ref
+    const arrayNameStr = targetArrayMatch[1]
     const index = parseInt(targetArrayMatch[2])
     
-    // Проверяем существование массива
     const arrayVar = getVariableByName(arrayNameStr)
     if (!arrayVar) {
       error.value = `Массив "${arrayNameStr}" не существует`
+      isValid.value = false
       return null
     }
     
     if (arrayVar.type !== 'array') {
       error.value = `"${arrayNameStr}" не является массивом`
+      isValid.value = false
       return null
     }
     
     if (index < 0 || index >= arrayVar.size) {
       error.value = `Индекс ${index} вне диапазона (0-${arrayVar.size-1})`
+      isValid.value = false
       return null
     }
     
-    // Запоминаем, что это запись в массив
     isArrayAssignment.value = true
-    arrayName.value = arrayNameStr  // ← присваиваем строку в ref
+    arrayName.value = arrayNameStr
     arrayIndex.value = index
     
   } else {
-    // ЭТО ОБЫЧНАЯ ПЕРЕМЕННАЯ
     if (!target.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
       error.value = `Неверное имя переменной: ${target}`
+      isValid.value = false
       return null
     }
-    
-    // Проверяем, существует ли целевая переменная
     const targetVar = getVariableByName(target)
     if (!targetVar) {
       error.value = `Переменная "${target}" не существует`
+      isValid.value = false
       return null
     }
-    
     isArrayAssignment.value = false
   }
   
-  // 4. Проверяем правую часть
-  if (!expression) {
-    error.value = 'Нет выражения после ='
-    return null
-  }
-  
-  // 5. Парсим выражение
   const result = parseMathExpression(expression)
   
   if (result.error) {
     error.value = result.error
+    isValid.value = false
     return null
   }
   
-  // 6. Показываем предпросмотр
   preview.value = result.value
+  isValid.value = true
   
-  // 7. Возвращаем результат для вычисления
   if (isArrayAssignment.value) {
     return {
       targetArray: arrayName.value,
@@ -164,68 +160,56 @@ const parseExpression = (expr) => {
   }
 }
 
-// Парсинг числа, переменной или массива
-const parseValue = (str) => {
-  str = str.trim()
-  
-  // Проверяем, число ли это
-  if (!isNaN(Number(str))) {
-    return { value: Number(str) }
-  }
-  
-  // Проверяем, массив ли это (с индексами)
-  const arrayMatch = str.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
-  if (arrayMatch) {
-    const name = arrayMatch[1]
-    const index = parseInt(arrayMatch[2])
-    
-    const variable = getVariableByName(name)
-    if (!variable) {
-      return { error: `Переменная "${name}" не найдена` }
-    }
-    
-    if (variable.type !== 'array') {
-      return { error: `"${name}" не является массивом` }
-    }
-    
-    if (index < 0 || index >= variable.value.length) {
-      return { error: `Индекс ${index} вне диапазона (0-${variable.value.length-1})` }
-    }
-    
-    return { value: variable.value[index] }
-  }
-  
-  // Проверяем, переменная ли это
-  const varMatch = str.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
-  if (varMatch) {
-    const name = str
-    const variable = getVariableByName(name)
-    if (!variable) {
-      return { error: `Переменная "${name}" не найдена` }
-    }
-    
-    if (variable.type === 'array') {
-      return { error: `"${name}" - это массив, нужен индекс (например ${name}[0])` }
-    }
-    
-    return { value: variable.value }
-  }
-  
-  // Проверяем, скобки ли это
-  if (str.startsWith('(') && str.endsWith(')')) {
-    return parseMathExpression(str.substring(1, str.length - 1))
-  }
-  
-  return { error: `Неверный синтаксис: "${str}"` }
+
+const updateValidState = () => {
+  const result = parseExpression(expression.value)
+  isValid.value = !!(result && !error.value)
+  return result
 }
 
-// Парсинг математического выражения (без =)
+const executeMath = () => {
+  if (isExecuting.value)
+  {
+    return
+  }
+  isExecuting.value = true
+  
+  const result = updateValidState()
+  
+  if (result && !error.value) {
+    if (isArrayAssignment.value) {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetArray: result.targetArray,
+        targetIndex: result.targetIndex
+      })
+    } else {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetVariable: result.target
+      })
+    }
+    
+    wasExecuted.value = true
+    
+  }
+  
+  isExecuting.value = false
+}
+
+watch(() => variables.value, () => {
+  updateValidState()
+}, { deep: true })
+
 const parseMathExpression = (expr) => {
-  // Убираем лишние пробелы
   expr = expr.trim()
   
-  // Пробуем найти операторы в порядке приоритета
-  // Сначала ищем + и - (вне скобок)
+  if (expr === '') {
+    return { error: 'Пустое выражение' }
+  }
+
   let bracketLevel = 0
   let operatorIndex = -1
   let operator = null
@@ -240,12 +224,11 @@ const parseMathExpression = (expr) => {
       if (char === '+' || char === '-') {
         operatorIndex = i
         operator = char
-        break // нашли самый левый оператор
+        break
       }
     }
   }
   
-  // Если не нашли + или -, ищем * / %
   if (operatorIndex === -1) {
     bracketLevel = 0
     for (let i = 0; i < expr.length; i++) {
@@ -264,19 +247,20 @@ const parseMathExpression = (expr) => {
     }
   }
   
-  // Если нашли оператор
   if (operatorIndex !== -1) {
     const left = expr.substring(0, operatorIndex).trim()
     const right = expr.substring(operatorIndex + 1).trim()
     
-    // Рекурсивно парсим левую и правую части
+    if (right === '') {
+      return { error: 'Неполное выражение после оператора' }
+    }
+    
     const leftResult = parseMathExpression(left)
     if (leftResult.error) return leftResult
     
     const rightResult = parseMathExpression(right)
     if (rightResult.error) return rightResult
     
-    // Вычисляем результат
     let value
     switch (operator) {
       case '+': value = leftResult.value + rightResult.value; break
@@ -296,66 +280,64 @@ const parseMathExpression = (expr) => {
     return { value }
   }
   
-  // Если нет операторов - это число, переменная или массив
   return parseValue(expr)
 }
 
-// Выполнение математической операции
-// Новый флаг
-const wasExecuted = ref(false)
-
-const executeMath = () => {
-  const result = parseExpression(expression.value)
+const parseValue = (str) => {
+  str = str.trim()
   
-  if (result && !error.value) {
-    if (isArrayAssignment.value) {
-      emit('execute', {
-        id: props.block.id,
-        result: result.value,
-        targetArray: result.targetArray,
-        targetIndex: result.targetIndex
-      })
-    } else {
-      emit('execute', {
-        id: props.block.id,
-        result: result.value,
-        targetVariable: result.target
-      })
-    }
-    wasExecuted.value = true
+  if (str === '') {
+    return { error: 'Пустое значение' }
   }
+  
+  if (!isNaN(Number(str))) {
+    return { value: Number(str) }
+  }
+  
+  const arrayMatch = str.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
+  if (arrayMatch) {
+    const name = arrayMatch[1]
+    const index = parseInt(arrayMatch[2])
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
+    }
+    if (variable.type !== 'array') {
+      return { error: `"${name}" не является массивом` }
+    }
+    if (index < 0 || index >= variable.value.length) {
+      return { error: `Индекс ${index} вне диапазона (0-${variable.value.length-1})` }
+    }
+    return { value: variable.value[index] }
+  }
+  
+  const varMatch = str.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+  if (varMatch) {
+    const name = str
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
+    }
+    if (variable.type === 'array') {
+      return { error: `"${name}" - это массив, нужен индекс (например ${name}[0])` }
+    }
+    
+    return { value: variable.value }
+  }
+  
+  if (str.startsWith('(') && str.endsWith(')')) {
+    return parseMathExpression(str.substring(1, str.length - 1))
+  }
+  
+  return { error: `Неверный синтаксис: "${str}"` }
 }
 
 const onExpressionChange = () => {
-  console.log('✏️ expression changed:', expression.value)
-  const result = parseExpression(expression.value)
-  
-  // Сбрасываем флаг при изменении выражения
-  wasExecuted.value = false
-  
+
+  updateValidState()
   emitUpdate()
 }
 
-// Добавьте кнопку для ручного выполнения
-const handleKeydown = (e) => {
-  if (e.key === 'Enter' && e.ctrlKey) {
-    executeMath()
-  }
-}
-
-// Обработка Enter
-const onEnterKey = (e) => {
-  if (e.ctrlKey || e.metaKey) {
-    executeMath()
-  }
-}
-
-// Вызывается при каждом изменении текста
-// Добавьте эту переменную
-const lastValidExpression = ref('')
-
-
-// Обновление блока
 const emitUpdate = () => {
   const updateData = {
     id: props.block.id,
@@ -364,12 +346,7 @@ const emitUpdate = () => {
   emit('update-block', updateData)
 }
 
-// Следим за изменениями в переменных (для валидации)
-watch(() => variables.value, () => {
-  parseExpression(expression.value)
-}, { deep: true })
 
-// Инициализация при загрузке
 watch(() => props.block, (block) => {
   if (block.expression) {
     expression.value = block.expression
@@ -386,9 +363,14 @@ watch(() => props.block, (block) => {
   border-radius: 5px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
+  transition: border-color 0.3s;
 }
 
-/* СТИЛИ ДЛЯ НОВОГО ПОЛЯ ВВОДА */
+.math-content.executed {
+  border-color: #4CAF50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
 .math-expression-input {
   width: 100%;
   padding: 12px;
@@ -409,7 +391,29 @@ watch(() => props.block, (block) => {
   box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.3);
 }
 
-/* СТИЛИ ДЛЯ ОШИБОК */
+.math-execute-btn {
+  width: 40px;
+  height: 40px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.math-execute-btn:hover {
+  background: #45a049;
+}
+
 .math-error {
   padding: 10px;
   background: #ff4444;
@@ -420,8 +424,6 @@ watch(() => props.block, (block) => {
   font-family: 'Courier New', monospace;
   border-left: 3px solid #cc0000;
 }
-
-/* СТИЛИ ДЛЯ ПРЕДПРОСМОТРА */
 .math-preview {
   padding: 10px;
   background: #2d2d2d;
@@ -446,7 +448,6 @@ watch(() => props.block, (block) => {
   font-family: monospace;
 }
 
-/* СТАРЫЕ СТИЛИ - ОСТАВЛЯЕМ ДЛЯ СОВМЕСТИМОСТИ */
 .delete-btn {
   position: absolute;
   top: -8px;
@@ -465,6 +466,17 @@ watch(() => props.block, (block) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.math-execute-btn:hover:not(:disabled) {
+  background: #45a049;
+  transform: scale(1.1);
+}
+
+.math-execute-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .math-block:hover .connect-btn,
