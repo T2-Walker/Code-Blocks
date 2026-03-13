@@ -29,7 +29,6 @@
       />
     </template>
 
-    <!-- Math блок -->
     <template v-else-if="block.type === 'math'">
       <MathBlock
         :block="block"
@@ -47,7 +46,6 @@
       />
     </template>
 
-    <!-- If блок -->
     <template v-else-if="block.type === 'if'">
       <IfBlock
         :block="block"
@@ -64,9 +62,24 @@
       />
     </template>
 
-    <!-- Print блок -->
     <template v-else-if="block.type === 'print'">
       <PrintBlock
+        :block="block"
+        :bounds="bounds"
+        :is-connection-source="isConnectionSource"
+        :all-blocks="allBlocks"
+        :all-connections="allConnections"
+        @drag-start="$emit('drag-start', block.id)"
+        @drag-move="$emit('drag-move', $event)"
+        @drag-end="$emit('drag-end')"
+        @delete="$emit('delete', block.id)"
+        @start-connection="$emit('start-connection', block.id)"
+        @update-block="$emit('update-block', $event)"
+      />
+    </template>
+
+    <template v-else-if="block.type === 'end'">
+      <EndBlock
         :block="block"
         :bounds="bounds"
         :is-connection-source="isConnectionSource"
@@ -109,6 +122,7 @@ import PrintBlock from './PrintBlock.vue'
 import IfBlock from './IfBlock.vue'
 import MathBlock from './MathBlock.vue'
 import VariableBlock from './VariableBlock.vue'
+import EndBlock from './EndBlock.vue'
 import DeleteButton from '../UI/DeleteButton.vue'
 
 const props = defineProps({

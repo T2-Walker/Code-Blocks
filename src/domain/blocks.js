@@ -16,14 +16,19 @@ export const BLOCK_TYPES = {
   },
   math: {
     type: 'math',
-    label: 'Math',
+    label: 'Посчитать',
     color: '#FF5722',
   },
   if: {
   type: 'if',
   label: 'Условие',
   color: '#FFC107',
-}
+  },
+  end: {
+    type: 'end',
+    label: 'Конец',
+    color: '#DC143C',
+  }
 }
 
 export const MATH_OPERATIONS = [
@@ -46,7 +51,7 @@ export function createBaseBlock(type, x, y) {
   if (!config) {
     throw new Error(`Неизвестный тип блока: ${type}`)
   }
-  
+
   const baseBlock = {
     id: Date.now() + Math.random(),
     type: config.type,
@@ -55,7 +60,7 @@ export function createBaseBlock(type, x, y) {
     x: Math.round(x),
     y: Math.round(y),
   }
-  
+
   if (type === 'math') {
     return {
       ...baseBlock,
@@ -65,6 +70,6 @@ export function createBaseBlock(type, x, y) {
       targetVariable: ''
     }
   }
-  
+
   return baseBlock
 }
