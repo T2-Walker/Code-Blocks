@@ -27,8 +27,8 @@ defineProps({
   width: 100%;
   height: 100%;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(113, 161, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(113, 161, 255, 0.05) 1px, transparent 1px);
   background-size: 20px 20px;
   pointer-events: none;
 }

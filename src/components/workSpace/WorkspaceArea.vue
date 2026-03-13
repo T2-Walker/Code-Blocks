@@ -399,7 +399,7 @@ onUnmounted(() => cancelConnection())
 .workspace {
   flex: 1;
   position: relative;
-  background-color: #1e1e1e;
+  background-color: #1f1a2e;
   overflow: hidden;
   cursor: default;
 }

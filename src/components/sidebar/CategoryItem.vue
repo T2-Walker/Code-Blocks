@@ -4,7 +4,7 @@
       <span>{{ title }}</span>
       <span>{{ expanded ? '▼' : '▶' }}</span>
     </div>
-    
+
     <div class="category-content" v-if="expanded">
       <slot></slot>
     </div>
@@ -14,7 +14,7 @@
 <script setup>
 defineProps({
   title: String,
-  expanded: Boolean
+  expanded: Boolean,
 })
 
 defineEmits(['toggle'])
@@ -22,7 +22,7 @@ defineEmits(['toggle'])
 
 <style scoped>
 .category {
-  border-bottom: 1px solid #3d3d3d;
+  border-bottom: 1px solid #1e123e;
 }
 
 .category-header {
@@ -35,7 +35,7 @@ defineEmits(['toggle'])
 }
 
 .category-header:hover {
-  background-color: #3d3d3d;
+  background-color: #1e123e;
 }
 
 .category-content {

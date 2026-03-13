@@ -1,10 +1,6 @@
 <template>
-  <div
-    class="block-item"
-    :style="{ backgroundColor: blockColor }"
-    @pointerdown="onPointerDown"
-  >
-    🟢 {{ blockName }}
+  <div class="block-item" :style="{ backgroundColor: blockColor }" @pointerdown="onPointerDown">
+    ♥ {{ blockName }}
   </div>
 </template>
 
@@ -35,7 +31,7 @@ const onPointerDown = (event) => {
   const onPointerUp = (e) => {
     const dx = Math.abs(e.clientX - startX)
     const dy = Math.abs(e.clientY - startY)
-    
+
     if (dx > 3 || dy > 3) {
       emit('palette-drop', {
         ...payload,
@@ -58,7 +54,9 @@ const onPointerDown = (event) => {
   border-radius: 5px;
   cursor: grab;
   text-align: center;
-  transition: transform 0.1s, opacity 0.1s;
+  transition:
+    transform 0.1s,
+    opacity 0.1s;
   color: white;
   font-weight: bold;
   margin-bottom: 8px;

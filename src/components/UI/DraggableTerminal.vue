@@ -18,11 +18,11 @@
         <button class="terminal-btn close-btn" @click.stop="$emit('close')">✕</button>
       </div>
     </div>
-    
+
 
     <div class="terminal-content" ref="contentRef">
-      <div 
-        v-for="(line, index) in lines" 
+      <div
+        v-for="(line, index) in lines"
         :key="index"
         class="terminal-line"
         :class="line.type"
@@ -65,31 +65,31 @@ const dragOffset = ref({ x: 0, y: 0 })
 
 const startDrag = (event) => {
   if (event.target.closest('.terminal-btn')) return
-  
+
   event.preventDefault()
   isDragging.value = true
-  
+
   const rect = terminalRef.value.getBoundingClientRect()
   dragOffset.value = {
     x: event.clientX - rect.left,
     y: event.clientY - rect.top
   }
-  
+
   document.addEventListener('mousemove', onDrag)
   document.addEventListener('mouseup', stopDrag)
 }
 
 const onDrag = (event) => {
   if (!isDragging.value) return
-  
+
   event.preventDefault()
-  
+
   let newX = event.clientX - dragOffset.value.x
   let newY = event.clientY - dragOffset.value.y
-  
+
   newX = Math.max(0, Math.min(newX, window.innerWidth - props.width))
   newY = Math.max(0, Math.min(newY, window.innerHeight - props.height))
-  
+
   position.value = { x: newX, y: newY }
   emit('update:position', position.value)
 }
@@ -135,7 +135,7 @@ onUnmounted(() => {
   min-width: 250px;
   min-height: 200px;
 }
-
+/* верхняя штучка у терминала*/
 .terminal-header {
   background-color: #2d2d2d;
   padding: 8px 12px;
