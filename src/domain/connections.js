@@ -28,6 +28,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
 
   const isStartSource = sourceBlock.type === 'start'
   const isStartTarget = targetBlock.type === 'start'
+  const isEndSource = sourceBlock.type === 'end'
 
   // Ограничения для исходящих связей
   if (isStartSource) {
@@ -37,12 +38,16 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
         reason: 'От блока "Начать" может идти только одна исходящая связь',
       }
     }
+  } else if (isEndSource) {
+    if (targetBlock.type !== 'start') {
+      return { allowed: false, reason: 'End может соединяться только со Start' }
+    }
   } else if (sourceBlock.type === 'if') {
     const existingNormal = currentConnections.some(
-      conn => conn.from === sourceBlock.id && conn.type === 'normal'
+      (conn) => conn.from === sourceBlock.id && conn.type === 'normal',
     )
     const existingThen = currentConnections.some(
-      conn => conn.from === sourceBlock.id && conn.type === 'then'
+      (conn) => conn.from === sourceBlock.id && conn.type === 'then',
     )
 
     if (connectionType === 'normal' && existingNormal) {
@@ -59,7 +64,6 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
   }
 
   // Ограничения для входящих связей
-  // У start может быть сколько угодно входящих
   if (!isStartTarget && (incomingCount[targetBlock.id] || 0) >= 1) {
     return {
       allowed: false,

@@ -25,17 +25,23 @@
         @palette-drop="onPaletteDrop"
       />
       <BlockItem
-  block-type="math"
-  block-name="Math"
-  block-color="#FF5722"
-  @palette-drop="onPaletteDrop"
-/>
-<BlockItem
-  block-type="if"
-  block-name="Условие"
-  block-color="#FFC107"
-  @palette-drop="onPaletteDrop"
-/>
+        block-type="math"
+        block-name="Math"
+        block-color="#FF5722"
+        @palette-drop="onPaletteDrop"
+      />
+      <BlockItem
+        block-type="if"
+        block-name="Условие"
+        block-color="#FFC107"
+        @palette-drop="onPaletteDrop"
+      />
+      <BlockItem
+        block-type="end"
+        block-name="Конец"
+        block-color="#DC143C"
+        @palette-drop="onPaletteDrop"
+      />
     </CategoryItem>
   </div>
 </template>
