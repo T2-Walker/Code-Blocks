@@ -13,9 +13,6 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
     if (!prevMap.has(conn.to)) prevMap.set(conn.to, conn.from)
   }
 
-  console.log(' prevMap:', Object.fromEntries(prevMap))
-  console.log(' nextMap:', Object.fromEntries(nextMap))
-
   let currentId = targetBlockId
   const visited = new Set()
   let startId = null
@@ -64,7 +61,6 @@ export function getDeclaredVariableNamesBeforeBlock(blocks, connections, targetB
         if (!seen.has(b.variableName)) {
           seen.add(b.variableName)
           names.push(b.variableName)
-          console.log('Found variable (old format):', b.variableName)
         }
       }
     }

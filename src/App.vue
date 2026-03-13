@@ -22,8 +22,6 @@ import Footer from '@/components/Footer.vue'
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  /* Остальные твои стили для main, если есть */
-  /* Например */
   min-height: 100vh;
   width: 100%;
 }

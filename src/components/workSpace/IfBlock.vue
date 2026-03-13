@@ -207,10 +207,9 @@ const getLeftValue = () => {
   const varObj = getVariableByName(leftVariable.value)
   if (!varObj) return 0
 
-  // Для массива
+  // для массива
   if (varObj.type === 'array') {
     if (leftIndex.value === 'all') {
-      // Для "весь массив" используем первый элемент
       return varObj.value[0] || 0
     } else {
       const idx = parseInt(leftIndex.value)
@@ -218,7 +217,6 @@ const getLeftValue = () => {
     }
   }
 
-  // Для обычной переменной
   return varObj.value
 }
 

@@ -30,7 +30,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
   const isStartTarget = targetBlock.type === 'start'
   const isEndSource = sourceBlock.type === 'end'
 
-  // Ограничения для исходящих связей
+  // ограничения для исходящих связей
   if (isStartSource) {
     if ((outgoingCount[sourceBlock.id] || 0) >= 1) {
       return {
@@ -63,7 +63,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
     }
   }
 
-  // Ограничения для входящих связей
+  // ограничения для входящих связей
   if (!isStartTarget && (incomingCount[targetBlock.id] || 0) >= 1) {
     return {
       allowed: false,
@@ -71,7 +71,7 @@ export function canConnectBlocks(sourceBlock, targetBlock, currentConnections, a
     }
   }
 
-  // Запрет циклов: добавление source -> target не должно создавать путь target -> source
+  // запрет циклов: добавление source -> target не должно создавать путь target -> source
   const willCreateCycle = checkCycle(sourceBlock.id, targetBlock.id, currentConnections)
   if (willCreateCycle) {
     return {
@@ -96,7 +96,7 @@ function buildDegreeMaps(conns) {
 }
 
 function checkCycle(sourceId, targetId, conns) {
-  // Проверяем, существует ли путь из targetId в sourceId по already existing connections
+  // проверяем, существует ли путь из targetId в sourceId
   const visited = new Set()
   const stack = [targetId]
 

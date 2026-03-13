@@ -8,7 +8,7 @@
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  height: 80px;
+  z-index: 40;
 }
 .nav-link{
   font-family: 'evolventa', Arial, sans-serif;
@@ -76,7 +76,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;  /* Очень высокий z-index */
+  z-index: 9999;  /* очень высокий z-index */
 }
 
 .modal-content {

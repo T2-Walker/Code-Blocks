@@ -43,7 +43,7 @@
         @start-connection="$emit('start-connection', block.id)"
         @update-block="$emit('update-block', $event)"
         @execute="onMathExecute"
-        
+
       />
     </template>
 
@@ -162,11 +162,8 @@ const emit = defineEmits([
 ])
 
 const onMathExecute = (data) => {
-  console.log('WorkspaceBlock onMathExecute:', data)
   emit('math-execute', data)
 }
-
-console.log('WorkspaceBlock props:', props.block)
 
 const isDragging = ref(false)
 const isEditing = ref(false)

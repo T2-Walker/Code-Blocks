@@ -24,7 +24,7 @@
         @connection-created="onConnectionCreated"
         @connection-deleted="onConnectionDeleted"
         @math-execute="onMathExecute"
-        
+
       />
     </div>
 
@@ -75,20 +75,20 @@ const updateVariableValue = (name, value) => {
       type: variable.type,
       value
     })
-    console.log('✅ upsertVariable выполнен')
+    console.log('upsertVariable выполнен')
   } else {
-    console.log('❌ Переменная не найдена!')
+    console.log('Переменная не найдена!')
   }
 }
 
 const updateVariableBlockValue = (varName, newValue) => {
-  console.log('🔄 updateVariableBlockValue:', varName, newValue)
-  
-  const variableBlocks = blocks.value.filter(b => 
-    b.type === 'variable' && 
+  console.log('updateVariableBlockValue:', varName, newValue)
+
+  const variableBlocks = blocks.value.filter(b =>
+    b.type === 'variable' &&
     b.savedVariables?.some(v => v.name === varName)
   )
-  
+
   variableBlocks.forEach(block => {
     const varIndex = block.savedVariables.findIndex(v => v.name === varName)
     if (varIndex !== -1) {
@@ -181,13 +181,13 @@ const onPaletteDrop = (payload) => {
 }
 
 const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => {
-  
+
   if (targetArray) {
     const arrayVar = getVariableByName(targetArray)
     if (arrayVar && arrayVar.type === 'array') {
       const newArray = [...arrayVar.value]
       newArray[targetIndex] = result
-      
+
       upsertVariable({
         oldName: targetArray,
         name: targetArray,
@@ -196,16 +196,16 @@ const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => 
         size: arrayVar.size,
         value: newArray
       })
-      
+
       updateVariableBlockValue(targetArray, newArray)
-      
-      
+
+
     }
   } else if (targetVariable) {
     updateVariableValue(targetVariable, result)
     updateVariableBlockValue(targetVariable, result)
-    
-   
+
+
   }
 }
 const runExecution = async (initialContext = null) => {
@@ -266,7 +266,7 @@ const runExecution = async (initialContext = null) => {
         }
       }
       if (block.type === 'if') {
-        console.log('🔍 IF block data:', {
+        console.log('If block data:', {
           leftType: block.leftType,
           leftVariable: block.leftVariable,
           leftIndex: block.leftIndex,
@@ -387,9 +387,9 @@ const runExecution = async (initialContext = null) => {
               Object.assign(currentVariables, thenResult)
             }
           }
-          addLine(`✅ Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
+          addLine(`Условие ${leftDisplay} ${comparator} ${rightDisplay} выполнено`, 'success')
         } else {
-          addLine(`❌ Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
+          addLine(`Условие ${leftDisplay} ${comparator} ${rightDisplay} не выполнено`, 'error')
           if (!initialContext) break
         }
       }
@@ -464,7 +464,7 @@ const runExecution = async (initialContext = null) => {
 
     while (conditionMet && iterationCount < MAX_ITERATIONS) {
       iterationCount++
-      
+
       addLine(`▶️ Итерация ${iterationCount} началась`, 'output')
 
       let loopContext = {}
@@ -474,18 +474,18 @@ const runExecution = async (initialContext = null) => {
 
       for (const thenConn of thenConnections) {
         const targetBlock = blocks.value.find(b => b.id === thenConn.to)
-        
+
         if (targetBlock && targetBlock.type === 'math') {
-          
+
           targetBlock.executeTrigger = (targetBlock.executeTrigger || 0) + 1
-          
+
           updateBlockPosition({
             id: targetBlock.id,
             executeTrigger: targetBlock.executeTrigger
           })
-          
+
           await new Promise(resolve => setTimeout(resolve, 10))
-          
+
         } else {
           const loopResult = runExecution({
             ...loopContext,
@@ -552,14 +552,14 @@ const runExecution = async (initialContext = null) => {
         case '<=': conditionMet = leftVal <= rightVal; break
       }
 
-      addLine(`🔄 Итерация ${iterationCount} завершена: ${leftDisplay} ${comparator} ${rightDisplay} = ${conditionMet}`, 'output')
+      addLine(`Итерация ${iterationCount} завершена: ${leftDisplay} ${comparator} ${rightDisplay} = ${conditionMet}`, 'output')
     }
 
     if (iterationCount >= MAX_ITERATIONS) {
-      addLine(`⚠️ Достигнут лимит итераций (${MAX_ITERATIONS}) в блоке while`, 'warning')
+      addLine(`Достигнут лимит итераций (${MAX_ITERATIONS}) в блоке while`, 'warning')
     }
 
-    addLine(`✅ Цикл выполнен ${iterationCount} раз`, 'success')
+    addLine(`Цикл выполнен ${iterationCount} раз`, 'success')
   }
 }
 
@@ -574,7 +574,7 @@ const runExecution = async (initialContext = null) => {
     addLine('Math-блок без целевой переменной, пропуск', 'error')
     continue
   }
-  
+
   let leftVal = 0
   if (block.leftType === 'variable') {
     const v = getVarValueByName(block.leftVariable)
@@ -608,7 +608,7 @@ const runExecution = async (initialContext = null) => {
 
   currentVariables[block.targetVariable] = result
   addLine(`${prefix}📝 ${block.targetVariable} = ${result}`, 'print')
-  
+
   if (!initialContext) {
     updateVariableValue(block.targetVariable, result)
   }
@@ -662,7 +662,7 @@ const runExecution = async (initialContext = null) => {
 const endExecution = () => {
   restoreInitialState(updateVariableValue)
   resetExecution()
-  addLine('🔄 Возврат к начальным значениям', 'output')
+  addLine('Возврат к начальным значениям', 'output')
 }
 </script>
 

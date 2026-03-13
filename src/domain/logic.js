@@ -4,7 +4,7 @@ export function getDefaultVariableForBlock() {
   return {
     name: '',
     type: 'int',
-    value: 1,
+    value: 0,
   }
 }
 
