@@ -75,6 +75,10 @@ const onPaletteDrop = (payload) => {
 
 <style scoped>
 .sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
   width: 280px;
   background-color: #160e2c;
   color: #ffffff;
@@ -82,6 +86,7 @@ const onPaletteDrop = (payload) => {
   flex-direction: column;
   overflow-y: auto;
   border-right: 1px solid #1e123e;
+  z-index: 30;
 }
 
 .sidebar h3 {

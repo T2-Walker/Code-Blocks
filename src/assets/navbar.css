@@ -8,7 +8,7 @@
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  height: 80px;
+  z-index: 40;
 }
 .nav-link{
   font-family: 'evolventa', Arial, sans-serif;
