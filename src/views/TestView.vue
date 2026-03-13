@@ -24,6 +24,7 @@
         @connection-created="onConnectionCreated"
         @connection-deleted="onConnectionDeleted"
         @math-execute="onMathExecute"
+        
       />
     </div>
 
@@ -72,9 +73,37 @@ const updateVariableValue = (name, value) => {
       oldName: name,
       name,
       type: variable.type,
-      value,
+      value
     })
+    console.log('✅ upsertVariable выполнен')
+  } else {
+    console.log('❌ Переменная не найдена!')
   }
+}
+
+const updateVariableBlockValue = (varName, newValue) => {
+  console.log('🔄 updateVariableBlockValue:', varName, newValue)
+  
+  const variableBlocks = blocks.value.filter(b => 
+    b.type === 'variable' && 
+    b.savedVariables?.some(v => v.name === varName)
+  )
+  
+  variableBlocks.forEach(block => {
+    const varIndex = block.savedVariables.findIndex(v => v.name === varName)
+    if (varIndex !== -1) {
+      const updatedSavedVariables = [...block.savedVariables]
+      updatedSavedVariables[varIndex] = {
+        ...updatedSavedVariables[varIndex],
+        value: newValue
+      }
+
+      updateBlockPosition({
+        id: block.id,
+        savedVariables: updatedSavedVariables
+      })
+    }
+  })
 }
 
 watch(
@@ -97,7 +126,6 @@ const addBlock = (newBlock) => {
   blocks.value.push(newBlock)
   addLine(`Создан блок: ${newBlock.type}`, 'success')
 }
-
 const updateBlockPosition = (data) => {
   const block = blocks.value.find((b) => b.id === data.id)
   if (block) {
@@ -153,16 +181,13 @@ const onPaletteDrop = (payload) => {
 }
 
 const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => {
-  console.log('🔥 TestView onMathExecute ПОЛУЧИЛ:', { result, targetVariable, targetArray, targetIndex })
-
+  
   if (targetArray) {
     const arrayVar = getVariableByName(targetArray)
-    console.log('📦 Найден массив:', arrayVar)
-
     if (arrayVar && arrayVar.type === 'array') {
       const newArray = [...arrayVar.value]
       newArray[targetIndex] = result
-
+      
       upsertVariable({
         oldName: targetArray,
         name: targetArray,
@@ -171,48 +196,16 @@ const onMathExecute = ({ result, targetVariable, targetArray, targetIndex }) => 
         size: arrayVar.size,
         value: newArray
       })
-      console.log('✅ upsertVariable для массива выполнен')
-
-      blocks.value = blocks.value.map(block => {
-        if (block.type === 'variable' && block.savedVariables) {
-          const varIndex = block.savedVariables.findIndex(v => v.name === targetArray)
-          if (varIndex !== -1) {
-            block.savedVariables[varIndex].value = newArray
-          }
-        }
-        return block
-      })
-
-      addLine(`📝 ${targetArray}[${targetIndex}] = ${result}`, 'print')
+      
+      updateVariableBlockValue(targetArray, newArray)
+      
+      
     }
   } else if (targetVariable) {
-    console.log(`🎯 Обновляем переменную: ${targetVariable} = ${result}`)
-
-    // ВРЕМЕННО: прямое обновление без updateVariableValue
-    const variable = getVariableByName(targetVariable)
-    console.log('📦 Найденная переменная:', variable)
-
-    if (variable) {
-      upsertVariable({
-        oldName: targetVariable,
-        name: targetVariable,
-        type: variable.type,
-        value: result
-      })
-      console.log('✅ upsertVariable выполнен')
-
-      blocks.value = blocks.value.map(block => {
-        if (block.type === 'variable' && block.savedVariables) {
-          const varIndex = block.savedVariables.findIndex(v => v.name === targetVariable)
-          if (varIndex !== -1) {
-            block.savedVariables[varIndex].value = result
-          }
-        }
-        return block
-      })
-
-      addLine(`📝 ${targetVariable} = ${result}`, 'print')
-    }
+    updateVariableValue(targetVariable, result)
+    updateVariableBlockValue(targetVariable, result)
+    
+   
   }
 }
 const runExecution = (initialContext = null) => {
@@ -374,7 +367,7 @@ const runExecution = (initialContext = null) => {
 
         if (conditionMet) {
           let thenContext = {
-            startId: null, // будет заполнено для каждой then-связи вместо null
+            startId: null,
           }
           varNamesBeforeIf.forEach((name) => {
             thenContext[name] = currentVariables[name]

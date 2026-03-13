@@ -43,6 +43,7 @@
         @start-connection="$emit('start-connection', block.id)"
         @update-block="$emit('update-block', $event)"
         @execute="onMathExecute"
+        
       />
     </template>
 

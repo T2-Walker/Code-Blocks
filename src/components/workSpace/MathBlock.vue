@@ -1,13 +1,25 @@
 <template>
-  <div class="math-content">
+  <div 
+    class="math-content" 
+    :class="{ 'executed': wasExecuted }"
+  >
     <textarea
       v-model="expression"
       class="math-expression-input"
       placeholder="a = 2 + s[2]"
       rows="3"
       @input="onExpressionChange"
-      @keydown.enter.prevent="onEnterKey"
+ 
     ></textarea>
+     <button 
+      class="math-execute-btn" 
+      @click.stop="executeMath"
+      :disabled="!isValid"
+      title="Выполнить выражение"
+    >
+      ✓
+    </button>
+    
     
     <div v-if="error" class="math-error">
       ❌ {{ error }}
@@ -31,39 +43,55 @@ const props = defineProps({
 })
 
 const isArrayAssignment = ref(false)
+const isExecuting = ref(false)
 const arrayName = ref('')
 const arrayIndex = ref(-1)
 const emit = defineEmits(['update-block', 'execute'])
+const isValid = ref(false)
 
 const { variables, getVariableByName } = useVariables()
 
 const expression = ref(props.block.expression || 'a = 0')
 const error = ref('')
 const preview = ref(null)
-const lastExecutedExpression = ref('')
+const wasExecuted = ref(false)
+
 const parseExpression = (expr) => {
   error.value = ''
   preview.value = null
   isArrayAssignment.value = false
   arrayName.value = ''
   arrayIndex.value = -1
+  
   if (!expr.includes('=')) {
     error.value = 'Должно быть = (пример: a = 2 + 3)'
+    isValid.value = false
     return null
   }
+  
   const parts = expr.split('=')
   if (parts.length !== 2) {
     error.value = 'Должен быть один знак ='
+    isValid.value = false
     return null
   }
+  
   const target = parts[0].trim()
   const expression = parts[1].trim()
+  
   if (!target) {
     error.value = 'Нет целевой переменной'
+    isValid.value = false
     return null
   }
+  
+  if (!expression) {
+    error.value = 'Нет выражения после ='
+    isValid.value = false
+    return null
+  }
+  
   const targetArrayMatch = target.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
-  console.log('targetArrayMatch:', targetArrayMatch)
   
   if (targetArrayMatch) {
     const arrayNameStr = targetArrayMatch[1]
@@ -72,16 +100,19 @@ const parseExpression = (expr) => {
     const arrayVar = getVariableByName(arrayNameStr)
     if (!arrayVar) {
       error.value = `Массив "${arrayNameStr}" не существует`
+      isValid.value = false
       return null
     }
     
     if (arrayVar.type !== 'array') {
       error.value = `"${arrayNameStr}" не является массивом`
+      isValid.value = false
       return null
     }
     
     if (index < 0 || index >= arrayVar.size) {
       error.value = `Индекс ${index} вне диапазона (0-${arrayVar.size-1})`
+      isValid.value = false
       return null
     }
     
@@ -92,27 +123,29 @@ const parseExpression = (expr) => {
   } else {
     if (!target.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
       error.value = `Неверное имя переменной: ${target}`
+      isValid.value = false
       return null
     }
     const targetVar = getVariableByName(target)
     if (!targetVar) {
       error.value = `Переменная "${target}" не существует`
+      isValid.value = false
       return null
     }
     isArrayAssignment.value = false
   }
   
-  if (!expression) {
-    error.value = 'Нет выражения после ='
-    return null
-  }
   const result = parseMathExpression(expression)
   
   if (result.error) {
     error.value = result.error
+    isValid.value = false
     return null
   }
+  
   preview.value = result.value
+  isValid.value = true
+  
   if (isArrayAssignment.value) {
     return {
       targetArray: arrayName.value,
@@ -126,49 +159,56 @@ const parseExpression = (expr) => {
     }
   }
 }
-const parseValue = (str) => {
-  str = str.trim()
-  if (!isNaN(Number(str))) {
-    return { value: Number(str) }
+
+
+const updateValidState = () => {
+  const result = parseExpression(expression.value)
+  isValid.value = !!(result && !error.value)
+  return result
+}
+
+const executeMath = () => {
+  if (isExecuting.value)
+  {
+    return
   }
-  const arrayMatch = str.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
-  if (arrayMatch) {
-    const name = arrayMatch[1]
-    const index = parseInt(arrayMatch[2])
-    const variable = getVariableByName(name)
-    if (!variable) {
-      return { error: `Переменная "${name}" не найдена` }
-    }
-    if (variable.type !== 'array') {
-      return { error: `"${name}" не является массивом` }
-    }
-    if (index < 0 || index >= variable.value.length) {
-      return { error: `Индекс ${index} вне диапазона (0-${variable.value.length-1})` }
-    }
-    return { value: variable.value[index] }
-  }
-  const varMatch = str.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
-  if (varMatch) {
-    const name = str
-    const variable = getVariableByName(name)
-    if (!variable) {
-      return { error: `Переменная "${name}" не найдена` }
-    }
-    if (variable.type === 'array') {
-      return { error: `"${name}" - это массив, нужен индекс (например ${name}[0])` }
+  isExecuting.value = true
+  
+  const result = updateValidState()
+  
+  if (result && !error.value) {
+    if (isArrayAssignment.value) {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetArray: result.targetArray,
+        targetIndex: result.targetIndex
+      })
+    } else {
+      emit('execute', {
+        id: props.block.id,
+        result: result.value,
+        targetVariable: result.target
+      })
     }
     
-    return { value: variable.value }
+    wasExecuted.value = true
+    
   }
   
-  if (str.startsWith('(') && str.endsWith(')')) {
-    return parseMathExpression(str.substring(1, str.length - 1))
-  }
-  
-  return { error: `Неверный синтаксис: "${str}"` }
+  isExecuting.value = false
 }
+
+watch(() => variables.value, () => {
+  updateValidState()
+}, { deep: true })
+
 const parseMathExpression = (expr) => {
   expr = expr.trim()
+  
+  if (expr === '') {
+    return { error: 'Пустое выражение' }
+  }
 
   let bracketLevel = 0
   let operatorIndex = -1
@@ -210,6 +250,11 @@ const parseMathExpression = (expr) => {
   if (operatorIndex !== -1) {
     const left = expr.substring(0, operatorIndex).trim()
     const right = expr.substring(operatorIndex + 1).trim()
+    
+    if (right === '') {
+      return { error: 'Неполное выражение после оператора' }
+    }
+    
     const leftResult = parseMathExpression(left)
     if (leftResult.error) return leftResult
     
@@ -234,57 +279,64 @@ const parseMathExpression = (expr) => {
     
     return { value }
   }
+  
   return parseValue(expr)
 }
-const executeMath = () => {
-  const result = parseExpression(expression.value)
+
+const parseValue = (str) => {
+  str = str.trim()
   
-  if (result && !error.value) {
-    if (expression.value !== lastExecutedExpression.value) {
-      if (isArrayAssignment.value) {
-        emit('execute', {
-          id: props.block.id,
-          result: result.value,
-          targetArray: result.targetArray,
-          targetIndex: result.targetIndex
-        })
-      } else {
-        emit('execute', {
-          id: props.block.id,
-          result: result.value,
-          targetVariable: result.target
-        })
-      }
-      lastExecutedExpression.value = expression.value
+  if (str === '') {
+    return { error: 'Пустое значение' }
+  }
+  
+  if (!isNaN(Number(str))) {
+    return { value: Number(str) }
+  }
+  
+  const arrayMatch = str.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\[(\d+)\]$/)
+  if (arrayMatch) {
+    const name = arrayMatch[1]
+    const index = parseInt(arrayMatch[2])
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
     }
-  }
-}
-const onEnterKey = (e) => {
-  if (e.ctrlKey || e.metaKey) {
-    executeMath()
-  }
-}
-const onExpressionChange = () => {
-  const result = parseExpression(expression.value)
-  if (result && !error.value) {
-    if (isArrayAssignment.value) {
-      emit('execute', {
-        id: props.block.id,
-        result: result.value,
-        targetArray: result.targetArray,
-        targetIndex: result.targetIndex
-      })
-    } else {
-      emit('execute', {
-        id: props.block.id,
-        result: result.value,
-        targetVariable: result.target
-      })
+    if (variable.type !== 'array') {
+      return { error: `"${name}" не является массивом` }
     }
+    if (index < 0 || index >= variable.value.length) {
+      return { error: `Индекс ${index} вне диапазона (0-${variable.value.length-1})` }
+    }
+    return { value: variable.value[index] }
   }
-  emitUpdate()
+  
+  const varMatch = str.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+  if (varMatch) {
+    const name = str
+    const variable = getVariableByName(name)
+    if (!variable) {
+      return { error: `Переменная "${name}" не найдена` }
+    }
+    if (variable.type === 'array') {
+      return { error: `"${name}" - это массив, нужен индекс (например ${name}[0])` }
+    }
+    
+    return { value: variable.value }
+  }
+  
+  if (str.startsWith('(') && str.endsWith(')')) {
+    return parseMathExpression(str.substring(1, str.length - 1))
+  }
+  
+  return { error: `Неверный синтаксис: "${str}"` }
 }
 
+const onExpressionChange = () => {
+
+  updateValidState()
+  emitUpdate()
+}
 
 const emitUpdate = () => {
   const updateData = {
@@ -294,10 +346,6 @@ const emitUpdate = () => {
   emit('update-block', updateData)
 }
 
-
-watch(() => variables.value, () => {
-  parseExpression(expression.value)
-}, { deep: true })
 
 watch(() => props.block, (block) => {
   if (block.expression) {
@@ -315,6 +363,12 @@ watch(() => props.block, (block) => {
   border-radius: 5px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
   border: 2px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.math-content.executed {
+  border-color: #4CAF50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
 }
 
 .math-expression-input {
@@ -335,6 +389,29 @@ watch(() => props.block, (block) => {
   outline: none;
   border-color: #FF5722;
   box-shadow: 0 0 0 2px rgba(255, 87, 34, 0.3);
+}
+
+.math-execute-btn {
+  width: 40px;
+  height: 40px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.math-execute-btn:hover {
+  background: #45a049;
 }
 
 .math-error {
@@ -389,6 +466,17 @@ watch(() => props.block, (block) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.math-execute-btn:hover:not(:disabled) {
+  background: #45a049;
+  transform: scale(1.1);
+}
+
+.math-execute-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .math-block:hover .connect-btn,
