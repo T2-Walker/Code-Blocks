@@ -42,6 +42,12 @@
         block-color="#DC143C"
         @palette-drop="onPaletteDrop"
       />
+      <BlockItem
+        block-type="while"
+        block-name="Цикл"
+        block-color="#0000FF"
+        @palette-drop="onPaletteDrop"
+      />
     </CategoryItem>
   </div>
 </template>
@@ -55,7 +61,7 @@ const emit = defineEmits(['palette-drop'])
 
 const expanded = reactive({
   operators: true,
-  variables: false
+  variables: false,
 })
 
 const toggleCategory = (category) => {

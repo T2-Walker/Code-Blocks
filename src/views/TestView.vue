@@ -393,6 +393,139 @@ const runExecution = (initialContext = null) => {
           if (!initialContext) break
         }
       }
+
+      if (block.type === 'while') {
+        console.log('While block data:', {
+          leftType: block.leftType,
+          leftVariable: block.leftVariable,
+          leftIndex: block.leftIndex,
+          leftNumber: block.leftNumber,
+          comparator: block.comparator,
+          rightType: block.rightType,
+          rightVariable: block.rightVariable,
+          rightIndex: block.rightIndex,
+          rightNumber: block.rightNumber,
+        })
+
+        const getValueWithIndex = (varName, index) => {
+          const v = getVariableByName(varName)
+          if (!v) return 0
+
+          if (v.type === 'array') {
+            if (index === 'all') {
+              return v.value[0] || 0
+            } else {
+              const idx = parseInt(index)
+              return v.value[idx] || 0
+            }
+          }
+          return v.value
+        }
+
+        let leftVal = 0
+
+        if (block.leftType === 'variable') {
+          leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
+        } else {
+          leftVal = block.leftNumber || 0
+        }
+
+        let rightVal = 0
+
+        if (block.rightType === 'variable') {
+          rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
+        } else {
+          rightVal = block.rightNumber || 0
+        }
+
+        let conditionMet = false
+        const comparator = block.comparator || '=='
+
+        switch (comparator) {
+          case '==':
+            conditionMet = leftVal == rightVal
+            break
+          case '!=':
+            conditionMet = leftVal != rightVal
+            break
+          case '>':
+            conditionMet = leftVal > rightVal
+            break
+          case '<':
+            conditionMet = leftVal < rightVal
+            break
+          case '>=':
+            conditionMet = leftVal >= rightVal
+            break
+          case '<=':
+            conditionMet = leftVal <= rightVal
+            break
+        }
+
+        const varNamesBeforeWhile = getDeclaredVariableNamesBeforeBlock(
+          blocks.value,
+          connections.value,
+          block.id,
+        )
+
+        if (conditionMet) {
+          const thenConnections = connections.value.filter(
+            (conn) => conn.from === block.id && conn.type === 'then',
+          )
+
+          let iterationCount = 0
+          const MAX_ITERATIONS = 500
+
+          while (conditionMet && iterationCount < MAX_ITERATIONS) {
+            iterationCount++
+
+            // Создаем контекст для этой итерации
+            let loopContext = {}
+            varNamesBeforeWhile.forEach((name) => {
+              loopContext[name] = currentVariables[name]
+            })
+
+            for (const thenConn of thenConnections) {
+              const loopResult = runExecution({
+                ...loopContext,
+                startId: thenConn.to,
+              })
+
+              if (loopResult) {
+                Object.assign(currentVariables, loopResult)
+              }
+            }
+
+            if (block.leftType === 'variable') {
+              leftVal = getValueWithIndex(block.leftVariable, block.leftIndex)
+            } else {
+              leftVal = block.leftNumber || 0
+            }
+
+            if (block.rightType === 'variable') {
+              rightVal = getValueWithIndex(block.rightVariable, block.rightIndex)
+            } else {
+              rightVal = block.rightNumber || 0
+            }
+
+            switch (comparator) {
+              case '==': conditionMet = leftVal == rightVal; break
+              case '!=': conditionMet = leftVal != rightVal; break
+              case '>': conditionMet = leftVal > rightVal; break
+              case '<': conditionMet = leftVal < rightVal; break
+              case '>=': conditionMet = leftVal >= rightVal; break
+              case '<=': conditionMet = leftVal <= rightVal; break
+            }
+          }
+
+          if (iterationCount >= MAX_ITERATIONS) {
+            addLine(`Достигнут лимит итераций (3000) в блоке while`, 'warning')
+          }
+
+          addLine(`Цикл выполнен ${iterationCount} раз`, 'output')
+        }
+      }
+
       if (block.type === 'math') {
         const isThenBranch = initialContext?.startId !== undefined
         const prefix = isThenBranch ? '[then] ' : ''
